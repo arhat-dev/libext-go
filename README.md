@@ -7,6 +7,10 @@
 
 Library for building [`arhat`](https://github.com/arhat-dev/arhat) extensions in Go with
 
+## Examples
+
+- TL;DR, create a project using this template: [`template-arhat-ext-go`](https://github.com/arhat-dev/template-arhat-ext-go)
+
 ## LICENSE
 
 ```txt
