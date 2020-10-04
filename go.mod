@@ -1,3 +1,3 @@
-module arhat.dev/template-library-go
+module arhat.dev/libext
 
 go 1.15

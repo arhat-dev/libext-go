@@ -1,6 +1,6 @@
 // +build gofuzz
 
-package templatelibrarygo
+package libext
 
 import (
 	"bytes"

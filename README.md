@@ -1,11 +1,11 @@
-# Template Library Go
+# libext
 
-[![CI](https://github.com/arhat-dev/template-library-go/workflows/CI/badge.svg)](https://github.com/arhat-dev/template-library-go/actions?query=workflow%3ACI)
-[![PkgGoDev](https://pkg.go.dev/badge/arhat.dev/template-library-go)](https://pkg.go.dev/arhat.dev/template-library-go)
-[![GoReportCard](https://goreportcard.com/badge/arhat.dev/template-library-go)](https://goreportcard.com/report/arhat.dev/template-library-go)
-[![codecov](https://codecov.io/gh/arhat-dev/template-library-go/branch/master/graph/badge.svg)](https://codecov.io/gh/arhat-dev/template-library-go)
+[![CI](https://github.com/arhat-dev/libext-go/workflows/CI/badge.svg)](https://github.com/arhat-dev/libext-go/actions?query=workflow%3ACI)
+[![PkgGoDev](https://pkg.go.dev/badge/arhat.dev/libext)](https://pkg.go.dev/arhat.dev/libext)
+[![GoReportCard](https://goreportcard.com/badge/arhat.dev/libext)](https://goreportcard.com/report/arhat.dev/libext)
+[![codecov](https://codecov.io/gh/arhat-dev/libext-go/branch/master/graph/badge.svg)](https://codecov.io/gh/arhat-dev/libext-go)
 
-Template repo for golang libraries
+Library for building [`arhat`](https://github.com/arhat-dev/arhat) extensions in Go with
 
 ## LICENSE
 
