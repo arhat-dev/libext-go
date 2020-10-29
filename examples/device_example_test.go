@@ -1,52 +1,54 @@
 package examples_test
 
 import (
-	"arhat.dev/arhat-proto/arhatgopb"
-	"arhat.dev/libext"
-	"arhat.dev/libext/codecpb"
-	"arhat.dev/libext/extdevice"
-	"arhat.dev/pkg/log"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"time"
+
+	"arhat.dev/arhat-proto/arhatgopb"
+	"arhat.dev/pkg/log"
+
+	"arhat.dev/libext"
+	"arhat.dev/libext/codecpb"
+	"arhat.dev/libext/extperipheral"
 )
 
-type exampleDevice struct{}
+type examplePeripheral struct{}
 
-func (d *exampleDevice) Operate(params map[string]string, data []byte) ([][]byte, error) {
+func (d *examplePeripheral) Operate(params map[string]string, data []byte) ([][]byte, error) {
 	return [][]byte{[]byte("ok")}, nil
 }
 
-func (d *exampleDevice) CollectMetrics(params map[string]string) ([]*arhatgopb.DeviceMetricsMsg_Value, error) {
-	return []*arhatgopb.DeviceMetricsMsg_Value{
+func (d *examplePeripheral) CollectMetrics(params map[string]string) ([]*arhatgopb.PeripheralMetricsMsg_Value, error) {
+	return []*arhatgopb.PeripheralMetricsMsg_Value{
 		{Value: 1.1, Timestamp: time.Now().UnixNano()},
 	}, nil
 }
 
-func (d *exampleDevice) Close() {}
+func (d *examplePeripheral) Close() {}
 
-type exampleDeviceConnector struct{}
+type examplePeripheralConnector struct{}
 
-func (c *exampleDeviceConnector) Connect(
+func (c *examplePeripheralConnector) Connect(
 	target string, params map[string]string, tlsConfig *arhatgopb.TLSConfig,
-) (extdevice.Device, error) {
+) (extperipheral.Peripheral, error) {
 	tlsCfg, err := tlsConfig.GetTLSConfig()
 	if err != nil {
 		return nil, err
 	}
 
 	_ = tlsCfg
-	return &exampleDevice{}, nil
+	return &examplePeripheral{}, nil
 }
 
-func ExampleDeviceExtension() {
+func ExamplePeripheralExtension() {
 	appCtx := context.TODO()
 	client, err := libext.NewClient(
 		appCtx,
 		"unix:///var/run/arhat.sock",
 		&tls.Config{},
-		libext.ExtensionDevice,
+		libext.ExtensionPeripheral,
 		// use protobuf codec
 		&codecpb.Codec{},
 	)
@@ -57,9 +59,9 @@ func ExampleDeviceExtension() {
 
 	ctrl, err := libext.NewController(
 		appCtx,
-		"my-device-extension-name",
+		"my-peripheral-extension-name",
 		log.Log.WithName("controller"),
-		extdevice.NewHandler(log.Log.WithName("handler"), &exampleDeviceConnector{}),
+		extperipheral.NewHandler(log.Log.WithName("handler"), &examplePeripheralConnector{}),
 	)
 
 	for {

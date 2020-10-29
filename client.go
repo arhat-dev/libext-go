@@ -18,7 +18,7 @@ import (
 type ExtensionType string
 
 const (
-	ExtensionDevice ExtensionType = "/ext/devices"
+	ExtensionPeripheral ExtensionType = "/peripherals"
 )
 
 func NewClient(
