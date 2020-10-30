@@ -27,10 +27,10 @@ jobs:
         go:
         - 1.14.x
         # there are some issues for fuzz test with go1.15
-        # - 1.15.x
+        - 1.15.x
         os:
-        # - macos-latest
-        # - windows-latest
+        - macos-latest
+        - windows-latest
         - ubuntu-latest
 
     steps:
@@ -65,17 +65,17 @@ jobs:
       #   token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
       #   fail_ci_if_error: true # optional (default = false)
 
-  fuzz:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
+  # fuzz:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: actions/checkout@v2
 
-    - name: Install Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.14.x
+  #   - name: Install Go
+  #     uses: actions/setup-go@v2
+  #     with:
+  #       go-version: 1.14.x
 
-    - name: Fuzz Tests
-      run: |
-        make install.fuzz
-        make test.fuzz
+  #   - name: Fuzz Tests
+  #     run: |
+  #       make install.fuzz
+  #       make test.fuzz

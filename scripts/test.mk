@@ -16,7 +16,7 @@ GO_TEST := GOOS=$(shell go env GOHOSTOS) GOARCH=$(shell go env GOHOSTARCH) CGO_E
 	go test -mod=readonly -v -failfast -covermode=atomic -race -cpu 1,2,4
 
 test.unit:
-	${GO_TEST} -coverprofile=coverage.txt -coverpkg=./... ./...
+	${GO_TEST} -coverprofile=coverage.txt ./...
 
 install.fuzz:
 	sh scripts/fuzz.sh install

@@ -1,6 +1,8 @@
 package extperipheral
 
-import "arhat.dev/arhat-proto/arhatgopb"
+import (
+	"arhat.dev/arhat-proto/arhatgopb"
+)
 
 type Peripheral interface {
 	Operate(params map[string]string, data []byte) ([][]byte, error)

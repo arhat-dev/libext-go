@@ -1,5 +1,4 @@
 {
-  "extends": [
-    "config:base"
-  ]
+  "extends": ["github>arhat-dev/renovate-presets:general"],
+  "dependencyDashboardHeader": "This issue tracks dependency version upgrades"
 }

@@ -32,45 +32,39 @@ func (c *Handler) HandleCmd(id uint64, kind arhatgopb.CmdType, payload []byte) (
 		arhatgopb.CMD_PERIPHERAL_COLLECT_METRICS: c.handlePeripheralMetricsCollect,
 	}
 
-	var ret proto.Marshaler
 	switch kind {
 	case arhatgopb.CMD_PERIPHERAL_CLOSE:
 		c.logger.D("removing peripheral")
 		c.removePeripheral(id)
-		ret = &arhatgopb.DoneMsg{}
+		return &arhatgopb.DoneMsg{}, nil
 	case arhatgopb.CMD_PERIPHERAL_CONNECT:
 		c.logger.D("connecting peripheral")
 		err := c.handlePeripheralConnect(id, payload)
 		if err != nil {
-			ret = &arhatgopb.ErrorMsg{Description: err.Error()}
-		} else {
-			ret = &arhatgopb.DoneMsg{}
+			return nil, err
 		}
+		return &arhatgopb.DoneMsg{}, nil
 	default:
 		c.logger.D("working on peripheral specific operation")
 		// requires peripheral
 		handle, ok := handlerMap[kind]
 		if !ok {
 			c.logger.I("unknown peripheral cmd type", log.Int32("kind", int32(kind)))
-			ret = &arhatgopb.ErrorMsg{Description: "unknown cmd"}
-			break
+			return nil, fmt.Errorf("unknown cmd")
 		}
 
-		dev, ok := c.getPeripheral(id)
+		p, ok := c.getPeripheral(id)
 		if !ok {
-			ret = &arhatgopb.ErrorMsg{Description: "peripheral not found"}
-			break
+			return nil, fmt.Errorf("peripheral not found")
 		}
 
-		var err error
-		ret, err = handle(dev, payload)
+		ret, err := handle(p, payload)
 		if err != nil {
-			ret = &arhatgopb.ErrorMsg{Description: err.Error()}
-			break
+			return nil, err
 		}
-	}
 
-	return ret, nil
+		return ret, nil
+	}
 }
 
 func (c *Handler) handlePeripheralConnect(peripheralID uint64, data []byte) (err error) {
@@ -84,18 +78,18 @@ func (c *Handler) handlePeripheralConnect(peripheralID uint64, data []byte) (err
 		return fmt.Errorf("failed to unmarshal PeripheralConnectCmd: %w", err)
 	}
 
-	dev, err := c.impl.Connect(spec.Target, spec.Params, spec.Tls)
+	p, err := c.impl.Connect(spec.Target, spec.Params, spec.Tls)
 	if err != nil {
 		return fmt.Errorf("failed to establish connection to peripheral: %w", err)
 	}
 
 	defer func() {
 		if err != nil {
-			dev.Close()
+			p.Close()
 		}
 	}()
 
-	if _, loaded := c.peripherals.LoadOrStore(peripheralID, dev); loaded {
+	if _, loaded := c.peripherals.LoadOrStore(peripheralID, p); loaded {
 		return fmt.Errorf("invalid duplicate peripheral")
 	}
 
@@ -111,15 +105,16 @@ func (c *Handler) getPeripheral(peripheralID uint64) (Peripheral, bool) {
 	p, ok := i.(Peripheral)
 	if !ok {
 		c.peripherals.Delete(peripheralID)
+		return nil, false
 	}
 
 	return p, true
 }
 
 func (c *Handler) removePeripheral(peripheralID uint64) {
-	dev, ok := c.getPeripheral(peripheralID)
+	p, ok := c.getPeripheral(peripheralID)
 	if ok {
-		dev.Close()
+		p.Close()
 	}
 
 	c.peripherals.Delete(peripheralID)

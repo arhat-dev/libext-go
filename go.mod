@@ -6,7 +6,8 @@ require (
 	arhat.dev/arhat-proto v0.1.1
 	arhat.dev/pkg v0.0.0-20201011023427-3d85bac95f31
 	github.com/gogo/protobuf v1.3.1
-	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
+	github.com/stretchr/testify v1.6.1
+	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 )
 
 replace (
