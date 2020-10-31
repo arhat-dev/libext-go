@@ -16,7 +16,7 @@ type Decoder interface {
 }
 
 type Codec interface {
-	ContentType() string
+	Type() arhatgopb.CodecType
 	NewEncoder(w io.Writer) Encoder
 	NewDecoder(r io.Reader) Decoder
 }

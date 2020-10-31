@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	"arhat.dev/arhat-proto/arhatgopb"
 	"github.com/gogo/protobuf/proto"
 
 	"arhat.dev/libext"
@@ -13,8 +14,8 @@ import (
 
 type Codec struct{}
 
-func (c *Codec) ContentType() string {
-	return "application/protobuf"
+func (c *Codec) Type() arhatgopb.CodecType {
+	return arhatgopb.CODEC_PROTOBUF
 }
 
 func (c *Codec) NewEncoder(w io.Writer) libext.Encoder {

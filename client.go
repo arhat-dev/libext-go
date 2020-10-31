@@ -3,107 +3,193 @@ package libext
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"arhat.dev/arhat-proto/arhatgopb"
-	"arhat.dev/pkg/iohelper"
+	"github.com/pion/dtls/v2"
 	"golang.org/x/sync/errgroup"
 )
 
-type ExtensionType string
-
-const (
-	ExtensionPeripheral ExtensionType = "/peripherals"
+type (
+	connectFunc func() (net.Conn, error)
 )
 
 func NewClient(
 	ctx context.Context,
+	kind arhatgopb.ExtensionType,
+	name string,
+	codec Codec,
+
+	// connection management
+	dialer *net.Dialer,
 	endpointURL string,
 	tlsConfig *tls.Config,
-	kind ExtensionType,
-	codec Codec,
 ) (*Client, error) {
 	u, err := url.Parse(endpointURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid endpoint url: %w", err)
 	}
 
-	switch strings.ToLower(u.Scheme) {
-	case "tcp", "tcp4", "tcp6": // nolint:goconst
-	case "unix":
-	case "http":
-		tlsConfig = nil
-		u.Scheme = "tcp"
-	case "https":
-		if tlsConfig == nil {
-			return nil, fmt.Errorf("no tls config provided for https endpoint")
+	reg := &arhatgopb.RegisterMsg{
+		Name:          name,
+		ExtensionType: kind,
+		Codec:         codec.Type(),
+	}
+	regMsg, err := arhatgopb.NewMsg(0, 0, reg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create register message: %w", err)
+	}
+
+	regMsgBytes, err := json.Marshal(regMsg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal register message: %w", err)
+	}
+
+	if dialer == nil {
+		dialer = &net.Dialer{
+			Timeout:       0,
+			Deadline:      time.Time{},
+			LocalAddr:     nil,
+			FallbackDelay: 0,
+			KeepAlive:     0,
+			Resolver:      nil,
+			Control:       nil,
 		}
-		u.Scheme = "tcp"
+	}
+
+	var (
+		connector connectFunc
+	)
+	switch s := strings.ToLower(u.Scheme); s {
+	case "tcp", "tcp4", "tcp6": // nolint:goconst
+		_, err = net.ResolveTCPAddr(s, u.Host)
+		connector = func() (net.Conn, error) {
+			return dialer.DialContext(ctx, s, u.Host)
+		}
+	case "udp", "udp4", "udp6": // nolint:goconst
+		_, err = net.ResolveUDPAddr(s, u.Host)
+		connector = func() (net.Conn, error) {
+			return dialer.DialContext(ctx, s, u.Host)
+		}
+	case "unix", "unixgram": // nolint:goconst
+		_, err = net.ResolveUnixAddr(s, u.Path)
+		connector = func() (net.Conn, error) {
+			return dialer.DialContext(ctx, s, u.Path)
+		}
+	//case "fifo":
+	//	connector = func() (net.Conn, error) {
+	//		return nil, err
+	//	}
 	default:
 		return nil, fmt.Errorf("unsupported endpoint scheme %s", u.Scheme)
 	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve %s address: %w", u.Scheme, err)
+	}
 
 	return &Client{
-		ctx:     ctx,
-		network: u.Scheme,
-		addr:    u.Host + u.Path,
+		ctx: ctx,
 
-		tlsConfig: tlsConfig,
-		codec:     codec,
-		endpoint:  kind,
+		codec:  codec,
+		regMsg: regMsgBytes,
+
+		createConnection: func() (conn net.Conn, err error) {
+			conn, err = connector()
+			if err != nil {
+				return nil, err
+			}
+			if tlsConfig == nil {
+				return conn, nil
+			}
+
+			defer func() {
+				if err != nil {
+					_ = conn.Close()
+				}
+			}()
+
+			_, isPktConn := conn.(net.PacketConn)
+			if isPktConn {
+				var cs []dtls.CipherSuiteID
+				for i := range tlsConfig.CipherSuites {
+					cs = append(cs, dtls.CipherSuiteID(tlsConfig.CipherSuites[i]))
+				}
+				return dtls.ClientWithContext(ctx, conn, &dtls.Config{
+					Certificates:          tlsConfig.Certificates,
+					CipherSuites:          cs,
+					InsecureSkipVerify:    tlsConfig.InsecureSkipVerify,
+					VerifyPeerCertificate: tlsConfig.VerifyPeerCertificate,
+					RootCAs:               tlsConfig.RootCAs,
+					ClientCAs:             tlsConfig.ClientCAs,
+					ServerName:            tlsConfig.ServerName,
+					ConnectContextMaker: func() (context.Context, func()) {
+						return context.WithCancel(ctx)
+					},
+
+					// TODO: support more dTLS options
+					SignatureSchemes:       nil,
+					SRTPProtectionProfiles: nil,
+					ClientAuth:             0,
+					ExtendedMasterSecret:   0,
+					FlightInterval:         0,
+					PSK:                    nil,
+					PSKIdentityHint:        nil,
+					InsecureHashes:         false,
+					LoggerFactory:          nil,
+					MTU:                    0,
+					ReplayProtectionWindow: 0,
+				})
+			}
+
+			return tls.Client(conn, tlsConfig), nil
+		},
 	}, nil
 }
 
 type Client struct {
-	ctx     context.Context
-	network string
-	addr    string
+	ctx context.Context
 
-	tlsConfig *tls.Config
-	codec     Codec
-	endpoint  ExtensionType
+	codec  Codec
+	regMsg []byte
+
+	createConnection connectFunc
 }
 
+// ProcessNewStream creates a new connection and handles message stream until connection lost
+// or msgCh closed
+// the provided `cmdCh` and `msgCh` are expected to be freshly created
+// usually this function is used in conjunction with Controller.RefreshChannels
 func (c *Client) ProcessNewStream(
 	cmdCh chan<- *arhatgopb.Cmd,
 	msgCh <-chan *arhatgopb.Msg,
 ) error {
-	client, cleanup, err := c.createHTTPClient()
+	conn, err := c.createConnection()
 	if err != nil {
 		return fmt.Errorf("failed to dial endpoint: %w", err)
 	}
 
-	defer cleanup()
+	defer func() {
+		_ = conn.Close()
+	}()
 
-	pr, pw := iohelper.Pipe()
-
-	req, err := http.NewRequest(http.MethodPost, "", pr)
+	_, err = conn.Write(c.regMsg)
 	if err != nil {
-		return fmt.Errorf("failed to create post request")
+		return fmt.Errorf("failed to register myself: %w", err)
 	}
-
-	req.Host = c.addr
-	req.URL.Path = string(c.endpoint)
-	req.URL.Host = c.addr
-	req.URL.Scheme = "http"
-	if c.tlsConfig != nil {
-		req.URL.Scheme = "https"
-	}
-
-	req.Header.Set("Content-Type", c.codec.ContentType())
 
 	wg, ctx := errgroup.WithContext(c.ctx)
 
 	wg.Go(func() error {
-		enc := c.codec.NewEncoder(pw)
+		enc := c.codec.NewEncoder(conn)
 
 		defer func() {
-			_ = pw.Close()
+			_ = conn.Close()
 		}()
 
 		for msg := range msgCh {
@@ -116,29 +202,17 @@ func (c *Client) ProcessNewStream(
 		return io.EOF
 	})
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to start sync loop for the first time: %w", err)
-	}
-
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
 	wg.Go(func() error {
 		defer func() {
 			close(cmdCh)
 		}()
 
-		dec := c.codec.NewDecoder(resp.Body)
+		dec := c.codec.NewDecoder(conn)
 		for {
 			cmd := new(arhatgopb.Cmd)
-			err2 := dec.Decode(cmd)
+			err2 := checkNetworkReadErr(dec.Decode(cmd))
 			if err2 != nil {
-				if err2 != io.EOF {
-					return fmt.Errorf("failed to decode cmd: %w", err2)
-				}
-				return nil
+				return err2
 			}
 
 			select {
@@ -157,26 +231,19 @@ func (c *Client) ProcessNewStream(
 	return nil
 }
 
-func (c *Client) createHTTPClient() (_ *http.Client, cleanup func(), _ error) {
-	dialer := &net.Dialer{}
-	conn, err := dialer.DialContext(c.ctx, c.network, c.addr)
-	if err != nil {
-		return nil, nil, err
+func checkNetworkReadErr(err error) error {
+	if err == nil {
+		return nil
 	}
 
-	return &http.Client{
-			Transport: &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
-				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					return conn, err
-				},
-				TLSClientConfig:   c.tlsConfig,
-				ForceAttemptHTTP2: true,
-			},
-			CheckRedirect: nil,
-			Jar:           nil,
-			Timeout:       0,
-		}, func() {
-			_ = conn.Close()
-		}, nil
+	switch t := err.(type) {
+	case *net.OpError:
+		if t.Err.Error() == "use of closed network connection" {
+			return io.EOF
+		}
+	default:
+		return t
+	}
+
+	return err
 }

@@ -46,11 +46,13 @@ func ExamplePeripheralExtension() {
 	appCtx := context.TODO()
 	client, err := libext.NewClient(
 		appCtx,
+		arhatgopb.EXTENSION_PERIPHERAL,
+		"my-peripheral-extension-name",
+		&codecpb.Codec{},
+
+		nil,
 		"unix:///var/run/arhat.sock",
 		&tls.Config{},
-		libext.ExtensionPeripheral,
-		// use protobuf codec
-		&codecpb.Codec{},
 	)
 
 	if err != nil {
@@ -59,7 +61,6 @@ func ExamplePeripheralExtension() {
 
 	ctrl, err := libext.NewController(
 		appCtx,
-		"my-peripheral-extension-name",
 		log.Log.WithName("controller"),
 		extperipheral.NewHandler(log.Log.WithName("handler"), &examplePeripheralConnector{}),
 	)

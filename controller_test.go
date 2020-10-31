@@ -17,7 +17,7 @@ func (h *testHandler) HandleCmd(id uint64, kind arhatgopb.CmdType, payload []byt
 }
 
 func TestController_RefreshChannels(t *testing.T) {
-	c, err := NewController(context.TODO(), "test", log.NoOpLogger, &testHandler{})
+	c, err := NewController(context.TODO(), log.NoOpLogger, &testHandler{})
 	if !assert.NoError(t, err) {
 		t.FailNow()
 		return
@@ -41,10 +41,6 @@ func TestController_RefreshChannels(t *testing.T) {
 }
 
 func testRoutine(t *testing.T, cmdCh chan<- *arhatgopb.Cmd, msgCh <-chan *arhatgopb.Msg) {
-	// controller will register itself first
-	regMsg := <-msgCh
-	assert.Equal(t, arhatgopb.MSG_REGISTER, regMsg.Kind)
-
 	// request & reply
 	cmdCh <- &arhatgopb.Cmd{
 		Id:  100,

@@ -2,10 +2,13 @@ package libext_test
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
 	"net"
-	"net/http"
+	"os"
+	"runtime"
+	"strings"
 	"testing"
-	"time"
 
 	"arhat.dev/arhat-proto/arhatgopb"
 	"github.com/stretchr/testify/assert"
@@ -15,43 +18,118 @@ import (
 )
 
 func TestClient_ProcessNewStream(t *testing.T) {
-	l, err := net.Listen("tcp", "localhost:0")
-	if !assert.NoError(t, err) {
-		t.FailNow()
-		return
+	tests := []struct {
+		network string
+		packet  bool
+	}{
+		{
+			network: "tcp",
+			packet:  false,
+		},
+		{
+			network: "tcp4",
+			packet:  false,
+		},
+		{
+			network: "tcp6",
+			packet:  false,
+		},
+		{
+			network: "udp",
+			packet:  true,
+		},
+		{
+			network: "udp4",
+			packet:  true,
+		},
+		{
+			network: "udp6",
+			packet:  true,
+		},
+		{
+			network: "unix",
+			packet:  false,
+		},
+		{
+			network: "unixgram",
+			packet:  true,
+		},
 	}
 
-	defer func() {
-		_ = l.Close()
-	}()
+	for _, test := range tests {
+		t.Run(test.network, func(t *testing.T) {
+			addr := "localhost:0"
+			if strings.HasPrefix(test.network, "unix") {
+				if runtime.GOOS == "windows" {
+					t.Skipf("ignored unix socket on windows")
+				}
 
-	go func() {
-		_ = http.Serve(l, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			assert.Equal(t, http.MethodPost, request.Method)
-			writer.Header().Set("Transfer-Encoding", "chunked")
+				f, err := ioutil.TempFile(os.TempDir(), fmt.Sprintf("test.%s.*", test.network))
+				if !assert.NoError(t, err) {
+					assert.FailNow(t, "failed to create temporary unix sock file")
+					return
+				}
+				addr = f.Name()
 
-			writer.WriteHeader(http.StatusOK)
+				_ = f.Close()
+				_ = os.Remove(addr)
 
-			_, _ = writer.Write([]byte("{}"))
+				defer func() {
+					_ = os.Remove(addr)
+				}()
+			}
 
-			time.Sleep(time.Second)
-		}))
-	}()
+			var srvAddr string
+			if !test.packet {
+				l, err := net.Listen(test.network, addr)
+				if !assert.NoError(t, err) {
+					assert.FailNow(t, "failed to listen stream")
+					return
+				}
 
-	client, err := libext.NewClient(context.TODO(), "http://"+l.Addr().String(), nil, "/test", new(codecjson.Codec))
-	if !assert.NoError(t, err) {
-		t.FailNow()
-		return
-	}
+				defer func() {
+					_ = l.Close()
+				}()
 
-	cmdCh, msgCh := make(chan *arhatgopb.Cmd), make(chan *arhatgopb.Msg)
+				srvAddr = l.Addr().String()
+			} else {
+				p, err := net.ListenPacket(test.network, addr)
+				if !assert.NoError(t, err) {
+					assert.FailNow(t, "failed to listen packet")
+					return
+				}
 
-	go close(msgCh)
+				defer func() {
+					_ = p.Close()
+				}()
 
-	assert.NoError(t, client.ProcessNewStream(cmdCh, msgCh))
-	select {
-	case <-cmdCh:
-	default:
-		assert.FailNow(t, "cmdCh not closed")
+				srvAddr = p.LocalAddr().String()
+			}
+
+			client, err := libext.NewClient(
+				context.TODO(),
+				arhatgopb.EXTENSION_PERIPHERAL,
+				"test",
+				new(codecjson.Codec),
+				nil,
+				test.network+"://"+srvAddr,
+				nil,
+			)
+			if !assert.NoError(t, err) {
+				t.FailNow()
+				return
+			}
+
+			cmdCh, msgCh := make(chan *arhatgopb.Cmd), make(chan *arhatgopb.Msg)
+
+			go close(msgCh)
+
+			assert.NoError(t, client.ProcessNewStream(cmdCh, msgCh))
+			select {
+			case <-cmdCh:
+			default:
+				assert.FailNow(t, "cmdCh not closed")
+			}
+		})
 	}
 }
