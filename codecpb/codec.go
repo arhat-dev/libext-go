@@ -69,6 +69,9 @@ type Decoder struct {
 func (dec *Decoder) Decode(out interface{}) error {
 	size, err := binary.ReadUvarint(dec.r)
 	if err != nil {
+		if err == io.EOF {
+			return io.EOF
+		}
 		return fmt.Errorf("failed to read size of the message: %w", err)
 	}
 

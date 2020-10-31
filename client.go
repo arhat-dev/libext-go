@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"arhat.dev/libext/types"
+	"arhat.dev/libext/util"
 )
 
 type (
@@ -118,35 +119,11 @@ func NewClient(
 
 			_, isPktConn := conn.(net.PacketConn)
 			if isPktConn {
-				var cs []dtls.CipherSuiteID
-				for i := range tlsConfig.CipherSuites {
-					cs = append(cs, dtls.CipherSuiteID(tlsConfig.CipherSuites[i]))
+				dtlsConfig := util.ConvertTLSConfigToDTLSConfig(tlsConfig)
+				dtlsConfig.ConnectContextMaker = func() (context.Context, func()) {
+					return context.WithCancel(ctx)
 				}
-				return dtls.ClientWithContext(ctx, conn, &dtls.Config{
-					Certificates:          tlsConfig.Certificates,
-					CipherSuites:          cs,
-					InsecureSkipVerify:    tlsConfig.InsecureSkipVerify,
-					VerifyPeerCertificate: tlsConfig.VerifyPeerCertificate,
-					RootCAs:               tlsConfig.RootCAs,
-					ClientCAs:             tlsConfig.ClientCAs,
-					ServerName:            tlsConfig.ServerName,
-					ConnectContextMaker: func() (context.Context, func()) {
-						return context.WithCancel(ctx)
-					},
-
-					// TODO: support more dTLS options
-					SignatureSchemes:       nil,
-					SRTPProtectionProfiles: nil,
-					ClientAuth:             0,
-					ExtendedMasterSecret:   0,
-					FlightInterval:         0,
-					PSK:                    nil,
-					PSKIdentityHint:        nil,
-					InsecureHashes:         false,
-					LoggerFactory:          nil,
-					MTU:                    0,
-					ReplayProtectionWindow: 0,
-				})
+				return dtls.ClientWithContext(ctx, conn, dtlsConfig)
 			}
 
 			return tls.Client(conn, tlsConfig), nil
@@ -202,7 +179,7 @@ func (c *Client) ProcessNewStream(
 				}
 				err2 := enc.Encode(msg)
 				if err2 != nil {
-					return fmt.Errorf("failed to marshal and send msg: %w", err2)
+					return fmt.Errorf("failed to encode message: %w", err2)
 				}
 			case <-ctx.Done():
 				return nil
@@ -251,6 +228,10 @@ func checkNetworkReadErr(err error) error {
 			return io.EOF
 		}
 	default:
+		if strings.Contains(err.Error(), "use of closed network connection") {
+			return io.EOF
+		}
+
 		return t
 	}
 
