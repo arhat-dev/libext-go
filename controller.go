@@ -6,13 +6,15 @@ import (
 
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
+
+	"arhat.dev/libext/types"
 )
 
 // NewController creates a hub for message send/receive
 func NewController(
 	ctx context.Context,
 	logger log.Interface,
-	h Handler,
+	h types.Handler,
 ) (*Controller, error) {
 	return &Controller{
 		ctx:    ctx,
@@ -28,7 +30,7 @@ type Controller struct {
 	ctx    context.Context
 	logger log.Interface
 
-	handler     Handler
+	handler     types.Handler
 	currentCB   *channelBundle
 	chRefreshed chan *channelBundle
 

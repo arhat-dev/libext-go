@@ -1,4 +1,4 @@
-package libext_test
+package libext
 
 import (
 	"context"
@@ -14,8 +14,8 @@ import (
 	"arhat.dev/arhat-proto/arhatgopb"
 	"github.com/stretchr/testify/assert"
 
-	"arhat.dev/libext"
 	"arhat.dev/libext/codecjson"
+	"arhat.dev/libext/types"
 )
 
 type testPacketWriter struct {
@@ -31,7 +31,7 @@ func TestClient_ProcessNewStream(t *testing.T) {
 	tests := []struct {
 		network string
 		packet  bool
-		codec   libext.Codec
+		codec   types.Codec
 	}{
 		{
 			network: "tcp",
@@ -173,7 +173,7 @@ func TestClient_ProcessNewStream(t *testing.T) {
 				}()
 			}
 
-			client, err := libext.NewClient(
+			client, err := NewClient(
 				context.TODO(),
 				arhatgopb.EXTENSION_PERIPHERAL,
 				"test",

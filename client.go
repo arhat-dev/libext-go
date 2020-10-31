@@ -14,6 +14,8 @@ import (
 	"arhat.dev/arhat-proto/arhatgopb"
 	"github.com/pion/dtls/v2"
 	"golang.org/x/sync/errgroup"
+
+	"arhat.dev/libext/types"
 )
 
 type (
@@ -24,7 +26,7 @@ func NewClient(
 	ctx context.Context,
 	kind arhatgopb.ExtensionType,
 	name string,
-	codec Codec,
+	codec types.Codec,
 
 	// connection management
 	dialer *net.Dialer,
@@ -155,7 +157,7 @@ func NewClient(
 type Client struct {
 	ctx context.Context
 
-	codec  Codec
+	codec  types.Codec
 	regMsg []byte
 
 	createConnection connectFunc
