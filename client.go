@@ -77,7 +77,7 @@ func NewClient(
 		connector = func() (net.Conn, error) {
 			return dialer.DialContext(ctx, s, u.Host)
 		}
-	case "unix", "unixgram": // nolint:goconst
+	case "unix": // nolint:goconst
 		_, err = net.ResolveUnixAddr(s, u.Path)
 		connector = func() (net.Conn, error) {
 			return dialer.DialContext(ctx, s, u.Path)
@@ -87,7 +87,7 @@ func NewClient(
 	//		return nil, err
 	//	}
 	default:
-		return nil, fmt.Errorf("unsupported endpoint scheme %s", u.Scheme)
+		return nil, fmt.Errorf("unsupported endpoint protocol %q", u.Scheme)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve %s address: %w", u.Scheme, err)
@@ -192,14 +192,20 @@ func (c *Client) ProcessNewStream(
 			_ = conn.Close()
 		}()
 
-		for msg := range msgCh {
-			err2 := enc.Encode(msg)
-			if err2 != nil {
-				return fmt.Errorf("failed to marshal and send msg: %w", err2)
+		for {
+			select {
+			case msg, more := <-msgCh:
+				if !more {
+					return nil
+				}
+				err2 := enc.Encode(msg)
+				if err2 != nil {
+					return fmt.Errorf("failed to marshal and send msg: %w", err2)
+				}
+			case <-ctx.Done():
+				return nil
 			}
 		}
-
-		return io.EOF
 	})
 
 	wg.Go(func() error {
@@ -224,6 +230,7 @@ func (c *Client) ProcessNewStream(
 	})
 
 	err = wg.Wait()
+
 	if err != nil && err != io.EOF {
 		return err
 	}
