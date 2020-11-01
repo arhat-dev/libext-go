@@ -43,8 +43,6 @@ func TestPacketConnectionManager_ListenAndServe(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			time.Sleep(time.Second)
-
 			testConnectionManagerListenAndServe(t, addr, test.regName, test.codec,
 				func(handleFunc netConnectionHandleFunc) connectionManager {
 					return newPacketConnectionManager(context.TODO(), log.NoOpLogger, addr, nil, handleFunc)
@@ -54,7 +52,15 @@ func TestPacketConnectionManager_ListenAndServe(t *testing.T) {
 	}
 }
 
-func testConnectionManagerListenAndServe(t *testing.T, addr net.Addr, regName string, codec types.Codec, createMgr func(handleFunc netConnectionHandleFunc) connectionManager) {
+func testConnectionManagerListenAndServe(
+	t *testing.T,
+	addr net.Addr,
+	regName string,
+	codec types.Codec,
+	createMgr func(handleFunc netConnectionHandleFunc) connectionManager,
+) {
+	time.Sleep(5 * time.Second)
+
 	connectionValidated := make(chan struct{})
 	cmdCh, msgCh := make(chan *arhatgopb.Cmd), make(chan *arhatgopb.Msg)
 
@@ -85,17 +91,20 @@ func testConnectionManagerListenAndServe(t *testing.T, addr net.Addr, regName st
 		return
 	}
 
+	clientExited := make(chan struct{})
 	go func() {
 		<-connectionValidated
 
 		close(msgCh)
 
-		time.Sleep(time.Second)
+		<-clientExited
 		_ = mgr.Close()
 	}()
 
 	// TODO: find a better way to connect without error
 	time.Sleep(5 * time.Second)
 	err = client.ProcessNewStream(cmdCh, msgCh)
+	close(clientExited)
+
 	assert.NoError(t, err)
 }

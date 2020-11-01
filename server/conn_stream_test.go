@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"testing"
-	"time"
 
 	"arhat.dev/pkg/log"
 	"github.com/stretchr/testify/assert"
@@ -40,8 +39,6 @@ func TestStreamConnectionManager_ListenAndServe(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			time.Sleep(time.Second)
-
 			testConnectionManagerListenAndServe(t, addr, test.regName, test.codec,
 				func(handleFunc netConnectionHandleFunc) connectionManager {
 					return newStreamConnectionManager(context.TODO(), log.NoOpLogger, addr, nil, handleFunc)
