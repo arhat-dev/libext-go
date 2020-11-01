@@ -94,7 +94,8 @@ func testConnectionManagerListenAndServe(t *testing.T, addr net.Addr, regName st
 		_ = mgr.Close()
 	}()
 
-	time.Sleep(time.Second)
+	// TODO: find a better way to connect without error
+	time.Sleep(5 * time.Second)
 	err = client.ProcessNewStream(cmdCh, msgCh)
 	assert.NoError(t, err)
 }
