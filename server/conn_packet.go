@@ -130,7 +130,7 @@ func (m *packetConnectionManager) ListenAndServe() error {
 					return
 				}
 
-				err2 = m.handleNewConnection(kind, name, codec, conn)
+				err2 = m.handleNewConn(kind, name, codec, conn)
 				if err2 != nil {
 					m.logger.I("failed to handle new connection", log.Error(err2))
 					return
@@ -179,7 +179,7 @@ func (m *packetConnectionManager) ListenAndServe() error {
 					m.connections.Delete(addr)
 				}()
 
-				err3 := m.handleNewConnection(kind, name, codec, conn)
+				err3 := m.handleNewConn(kind, name, codec, conn)
 				if err3 != nil {
 					m.logger.I("failed to handle new packet connection", log.Error(err3))
 					return

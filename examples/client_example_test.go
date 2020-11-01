@@ -14,35 +14,7 @@ import (
 	"arhat.dev/libext/extperipheral"
 )
 
-type examplePeripheral struct{}
-
-func (d *examplePeripheral) Operate(params map[string]string, data []byte) ([][]byte, error) {
-	return [][]byte{[]byte("ok")}, nil
-}
-
-func (d *examplePeripheral) CollectMetrics(params map[string]string) ([]*arhatgopb.PeripheralMetricsMsg_Value, error) {
-	return []*arhatgopb.PeripheralMetricsMsg_Value{
-		{Value: 1.1, Timestamp: time.Now().UnixNano()},
-	}, nil
-}
-
-func (d *examplePeripheral) Close() {}
-
-type examplePeripheralConnector struct{}
-
-func (c *examplePeripheralConnector) Connect(
-	target string, params map[string]string, tlsConfig *arhatgopb.TLSConfig,
-) (extperipheral.Peripheral, error) {
-	tlsCfg, err := tlsConfig.GetTLSConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	_ = tlsCfg
-	return &examplePeripheral{}, nil
-}
-
-func ExamplePeripheralExtension() {
+func ExampleClient() {
 	appCtx := context.TODO()
 	client, err := libext.NewClient(
 		appCtx,
@@ -76,4 +48,32 @@ func ExamplePeripheralExtension() {
 			}
 		}
 	}
+}
+
+type examplePeripheral struct{}
+
+func (d *examplePeripheral) Operate(params map[string]string, data []byte) ([][]byte, error) {
+	return [][]byte{[]byte("ok")}, nil
+}
+
+func (d *examplePeripheral) CollectMetrics(params map[string]string) ([]*arhatgopb.PeripheralMetricsMsg_Value, error) {
+	return []*arhatgopb.PeripheralMetricsMsg_Value{
+		{Value: 1.1, Timestamp: time.Now().UnixNano()},
+	}, nil
+}
+
+func (d *examplePeripheral) Close() {}
+
+type examplePeripheralConnector struct{}
+
+func (c *examplePeripheralConnector) Connect(
+	target string, params map[string]string, tlsConfig *arhatgopb.TLSConfig,
+) (extperipheral.Peripheral, error) {
+	tlsCfg, err := tlsConfig.GetTLSConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	_ = tlsCfg
+	return &examplePeripheral{}, nil
 }

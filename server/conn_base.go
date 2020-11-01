@@ -23,11 +23,11 @@ func newBaseConnectionManager(
 	handleFunc netConnectionHandleFunc,
 ) *baseConnectionManager {
 	return &baseConnectionManager{
-		ctx:                 ctx,
-		logger:              logger,
-		addr:                addr,
-		handleNewConnection: handleFunc,
-		mu:                  new(sync.RWMutex),
+		ctx:           ctx,
+		logger:        logger,
+		addr:          addr,
+		handleNewConn: handleFunc,
+		mu:            new(sync.RWMutex),
 	}
 }
 
@@ -36,7 +36,7 @@ type baseConnectionManager struct {
 	logger log.Interface
 	addr   net.Addr
 
-	handleNewConnection netConnectionHandleFunc
+	handleNewConn netConnectionHandleFunc
 
 	mu *sync.RWMutex
 }

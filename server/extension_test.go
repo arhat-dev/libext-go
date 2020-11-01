@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"net"
 	"testing"
-	"time"
 
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
@@ -36,18 +34,6 @@ func TestExtensionManager_handleStream(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			msg := &arhatgopb.Msg{
-				Kind:    1,
-				Id:      1,
-				Ack:     100,
-				Payload: []byte("msg"),
-			}
-			msgBytes, err := json.Marshal(msg)
-			if !assert.NoError(t, err) {
-				assert.FailNow(t, "failed to marshal required msg")
-				return
-			}
-
 			cmd := &arhatgopb.Cmd{
 				Kind:    100,
 				Id:      1,
@@ -60,27 +46,49 @@ func TestExtensionManager_handleStream(t *testing.T) {
 				return
 			}
 
-			clientConn, srvConn := net.Pipe()
-			handleFunc := func(ctx context.Context, cmdCh chan<- *arhatgopb.Cmd, msgCh <-chan *arhatgopb.Msg) error {
-				if test.expectErr {
-					return io.EOF
-				}
-
-				cmdCh <- cmd
-				recvMsg := <-msgCh
-				assert.EqualValues(t, msg, recvMsg)
-
-				time.Sleep(time.Second)
-				_ = clientConn.Close()
-				return io.EOF
+			msgResp := &arhatgopb.Msg{
+				Kind:    100,
+				Id:      1,
+				Ack:     1,
+				Payload: []byte("msg"),
+			}
+			msgRespBytes, err := json.Marshal(msgResp)
+			if !assert.NoError(t, err) {
+				assert.FailNow(t, "failed to marshal required msg")
+				return
 			}
 
-			mgr := newExtensionManager(context.TODO(), log.NoOpLogger, handleFunc)
+			clientConn, srvConn := net.Pipe()
+			handleFunc := func(extensionName string) (ExtensionHandleFunc, OutOfBandMsgHandleFunc) {
+				return func(c *ExtensionContext) {
+						if test.expectErr {
+							return
+						}
+
+						wrote := make(chan struct{})
+						go func() {
+							_, err2 := clientConn.Write(msgRespBytes)
+							assert.NoError(t, err2)
+
+							close(wrote)
+						}()
+						_, err2 := c.SendCmd(cmd)
+						assert.NoError(t, err2)
+
+						<-wrote
+						_ = clientConn.Close()
+					},
+					func(recvMsg *arhatgopb.Msg) {
+						assert.EqualValues(t, msgResp, recvMsg)
+					}
+			}
+
+			mgr := NewExtensionManager(context.TODO(), log.NoOpLogger, handleFunc)
 
 			finished := make(chan struct{})
 			if !test.expectErr {
 				go func() {
-					_, err2 := clientConn.Write(msgBytes)
+					_, err2 := clientConn.Write(msgRespBytes)
 					assert.NoError(t, err2)
 				}()
 

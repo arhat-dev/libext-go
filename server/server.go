@@ -20,8 +20,7 @@ import (
 func NewServer(
 	ctx context.Context,
 	logger log.Interface,
-	listenURLs []string,
-	tlsConfig *tls.Config,
+	listenURLs map[string]*tls.Config,
 ) (*Server, error) {
 	if len(listenURLs) == 0 {
 		return nil, fmt.Errorf("must provide at least one listen url")
@@ -30,11 +29,11 @@ func NewServer(
 	srv := &Server{
 		ctx:               ctx,
 		logger:            logger,
-		extensionManagers: make(map[arhatgopb.ExtensionType]*extensionManager),
+		extensionManagers: make(map[extensionKey]*ExtensionManager),
 		mu:                new(sync.RWMutex),
 	}
 
-	for _, listenURL := range listenURLs {
+	for listenURL, tlsConfig := range listenURLs {
 		u, err := url.Parse(listenURL)
 		if err != nil {
 			return nil, fmt.Errorf("invalid listen url: %w", err)
@@ -45,15 +44,15 @@ func NewServer(
 		case "tcp", "tcp4", "tcp6": // nolint:goconst
 			var addr *net.TCPAddr
 			addr, err = net.ResolveTCPAddr(s, u.Host)
-			connMgr = newStreamConnectionManager(ctx, logger, addr, tlsConfig, srv.handleConnection)
+			connMgr = newStreamConnectionManager(ctx, logger, addr, tlsConfig, srv.handleNewConn)
 		case "udp", "udp4", "udp6": // nolint:goconst
 			var addr *net.UDPAddr
 			addr, err = net.ResolveUDPAddr(s, u.Host)
-			connMgr = newPacketConnectionManager(ctx, logger, addr, tlsConfig, srv.handleConnection)
+			connMgr = newPacketConnectionManager(ctx, logger, addr, tlsConfig, srv.handleNewConn)
 		case "unix": // nolint:goconst
 			var addr *net.UnixAddr
 			addr, err = net.ResolveUnixAddr(s, u.Path)
-			connMgr = newStreamConnectionManager(ctx, logger, addr, tlsConfig, srv.handleConnection)
+			connMgr = newStreamConnectionManager(ctx, logger, addr, tlsConfig, srv.handleNewConn)
 		//case "fifo":
 		//	connector = func() (net.Conn, error) {
 		//		return nil, err
@@ -71,16 +70,22 @@ func NewServer(
 	return srv, nil
 }
 
+type extensionKey struct {
+	kind arhatgopb.ExtensionType
+	name string
+}
+
 type Server struct {
 	ctx    context.Context
 	logger log.Interface
 
 	connectionManagers []connectionManager
-	extensionManagers  map[arhatgopb.ExtensionType]*extensionManager
+	extensionManagers  map[extensionKey]*ExtensionManager
 
 	mu *sync.RWMutex
 }
 
+// ListenAndServe listen on local addresses and accept connections from extensions
 func (s *Server) ListenAndServe() error {
 	wg, ctx := errgroup.WithContext(s.ctx)
 	_ = ctx
@@ -98,22 +103,71 @@ func (s *Server) ListenAndServe() error {
 	return err
 }
 
-func (s *Server) Handle(kind arhatgopb.ExtensionType, handleFunc ExtensionHandleFunc) {
+// Handle extension session with handleFunc, you can specify optional extension names (`extensions`) to restrict
+// the handleFunc to these extensions, if no extension name specified, this handleFunc will override all
+// existing handleFunc for extensions with this kind
+func (s *Server) Handle(kind arhatgopb.ExtensionType, handleFactory ExtensionHandleFuncFactory, extensions ...string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.extensionManagers[kind] = newExtensionManager(s.ctx, s.logger, handleFunc)
+	mgr := NewExtensionManager(s.ctx, s.logger, handleFactory)
+	for i, name := range extensions {
+		if name == "" {
+			return
+		}
+		s.extensionManagers[extensionKey{
+			kind: kind,
+			name: extensions[i],
+		}] = mgr
+	}
+
+	if len(extensions) == 0 {
+		// handle all kinds of extensions in this kind
+		var toRemove []extensionKey
+		for k := range s.extensionManagers {
+			if k.kind != kind {
+				continue
+			}
+
+			toRemove = append(toRemove, extensionKey{
+				kind: kind,
+				name: k.name,
+			})
+		}
+
+		for _, k := range toRemove {
+			delete(s.extensionManagers, k)
+		}
+
+		s.extensionManagers[extensionKey{
+			kind: kind,
+			name: "",
+		}] = mgr
+	}
 }
 
-func (s *Server) handleConnection(
+func (s *Server) handleNewConn(
 	kind arhatgopb.ExtensionType,
 	name string,
 	codec types.Codec,
 	conn io.ReadWriter,
 ) error {
 	s.mu.RLock()
-	mgr, ok := s.extensionManagers[kind]
+	mgr, ok := s.extensionManagers[extensionKey{
+		kind: kind,
+		name: name,
+	}]
 	s.mu.RUnlock()
+
+	if !ok {
+		// fallback to general extension
+		s.mu.RLock()
+		mgr, ok = s.extensionManagers[extensionKey{
+			kind: kind,
+			name: "",
+		}]
+		s.mu.RUnlock()
+	}
 
 	if !ok {
 		return fmt.Errorf("no handler for %s", kind.String())
