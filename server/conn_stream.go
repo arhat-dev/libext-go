@@ -66,7 +66,10 @@ func (m *streamConnectionManager) ListenAndServe() error {
 			return nil, err
 		}
 
-		l = tls.NewListener(l, m.tlsConfig)
+		if m.tlsConfig != nil {
+			l = tls.NewListener(l, m.tlsConfig)
+		}
+
 		m.l = l
 
 		return l, nil
