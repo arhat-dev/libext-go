@@ -55,15 +55,14 @@ func TestPacketConnectionManager_ListenAndServe(t *testing.T) {
 }
 
 func testConnectionManagerListenAndServe(t *testing.T, addr net.Addr, regName string, codec types.Codec, createMgr func(handleFunc netConnectionHandleFunc) connectionManager) {
-	finished := make(chan struct{})
+	connectionValidated := make(chan struct{})
 	cmdCh, msgCh := make(chan *arhatgopb.Cmd), make(chan *arhatgopb.Msg)
 
 	handleFunc := func(kind arhatgopb.ExtensionType, name string, codec types.Codec, conn io.ReadWriter) error {
 		assert.EqualValues(t, regName, name)
 		assert.EqualValues(t, codec.Type(), codec.Type())
 
-		// connection validated
-		close(finished)
+		close(connectionValidated)
 		return nil
 	}
 
@@ -87,11 +86,11 @@ func testConnectionManagerListenAndServe(t *testing.T, addr net.Addr, regName st
 	}
 
 	go func() {
-		<-finished
+		<-connectionValidated
 
-		time.Sleep(2 * time.Second)
 		close(msgCh)
 
+		time.Sleep(time.Second)
 		_ = mgr.Close()
 	}()
 
