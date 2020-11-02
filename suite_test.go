@@ -18,6 +18,7 @@ package libext
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"io/ioutil"
 	"net"
 	"os"
@@ -48,7 +49,7 @@ func BenchmarkSuite(b *testing.B) {
 	var (
 		protos = []string{"tcp4", "tcp6", "udp4", "udp6"}
 		codecs = []types.Codec{
-			codec.GetCodec(arhatgopb.CODEC_PROTOBUF),
+			codec.GetCodec(arhatgopb.CODEC_JSON),
 			codec.GetCodec(arhatgopb.CODEC_PROTOBUF),
 		}
 	)
@@ -118,6 +119,12 @@ func BenchmarkSuite(b *testing.B) {
 				clientTLS *tls.Config
 			)
 			if bm.tls {
+				caBytes, err := ioutil.ReadFile("testdata/ca-cert.pem")
+				if err != nil {
+					b.Errorf("failed to load ca cert: %v", err)
+					return
+				}
+
 				serverCert, err := tls.LoadX509KeyPair("testdata/tls-cert.pem", "testdata/tls-key.pem")
 				if err != nil {
 					b.Errorf("failed to load server tls cert pair: %v", err)
@@ -130,13 +137,17 @@ func BenchmarkSuite(b *testing.B) {
 					return
 				}
 
+				cp := x509.NewCertPool()
+				cp.AppendCertsFromPEM(caBytes)
 				serverTLS = &tls.Config{
+					ClientCAs:          cp,
 					Certificates:       []tls.Certificate{serverCert},
 					ClientAuth:         tls.RequireAndVerifyClientCert,
 					InsecureSkipVerify: false,
 				}
 
 				clientTLS = &tls.Config{
+					RootCAs:            cp,
 					Certificates:       []tls.Certificate{clientCert},
 					ServerName:         "localhost",
 					InsecureSkipVerify: false,
