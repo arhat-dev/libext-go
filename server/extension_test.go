@@ -18,7 +18,7 @@ package server
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -74,6 +74,7 @@ func TestExtensionManager_handleStream(t *testing.T) {
 				return
 			}
 
+			clientExited := make(chan struct{})
 			msgRespWrote := make(chan struct{})
 			clientConn, srvConn := net.Pipe()
 			handleFunc := func(extensionName string) (ExtensionHandleFunc, OutOfBandMsgHandleFunc) {
@@ -82,19 +83,19 @@ func TestExtensionManager_handleStream(t *testing.T) {
 							return
 						}
 
-						wrote := make(chan struct{})
+						cmdWrote := make(chan struct{})
 						go func() {
 							_, err2 := clientConn.Write(msgRespBytes)
 							assert.NoError(t, err2)
 
-							close(wrote)
+							close(cmdWrote)
 						}()
 						_, err2 := c.SendCmd(cmd)
 						assert.NoError(t, err2)
 
-						<-wrote
+						<-cmdWrote
 						<-msgRespWrote
-						_ = clientConn.Close()
+						<-clientExited
 					},
 					func(recvMsg *arhatgopb.Msg) {
 						assert.EqualValues(t, msgResp, recvMsg)
@@ -103,7 +104,6 @@ func TestExtensionManager_handleStream(t *testing.T) {
 
 			mgr := NewExtensionManager(context.TODO(), log.NoOpLogger, handleFunc)
 
-			cmdRead := make(chan struct{})
 			if !test.expectErr {
 				go func() {
 					_, err2 := clientConn.Write(msgRespBytes)
@@ -112,10 +112,15 @@ func TestExtensionManager_handleStream(t *testing.T) {
 				}()
 
 				go func() {
-					data, _ := ioutil.ReadAll(clientConn)
+					data := make([]byte, len(cmdBytes)+1)
+					_, err2 := io.ReadFull(clientConn, data)
+					assert.NoError(t, err2)
 					// there will be a new line character after being encoded by json encoder
 					assert.EqualValues(t, append(append([]byte{}, cmdBytes...), '\n'), data)
-					close(cmdRead)
+
+					<-msgRespWrote
+					_ = clientConn.Close()
+					close(clientExited)
 				}()
 			} else {
 				go func() {
@@ -135,7 +140,7 @@ func TestExtensionManager_handleStream(t *testing.T) {
 				return
 			}
 
-			<-cmdRead
+			<-clientExited
 		})
 	}
 }
