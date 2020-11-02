@@ -14,8 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package extperipheral provides helper functions for creating peripheral extensions
-package extperipheral
+// Package server implements extension hub, which manages all incoming
+// connections from extension controllers
+package server
 
 // import default codec
 import (

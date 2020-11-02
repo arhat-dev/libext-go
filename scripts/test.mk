@@ -15,8 +15,15 @@
 GO_TEST := GOOS=$(shell go env GOHOSTOS) GOARCH=$(shell go env GOHOSTARCH) CGO_ENABLED=1 \
 	go test -mod=readonly -v -failfast -covermode=atomic -race -cpu 1,2,4
 
+GO_BENCH := GOOS=$(shell go env GOHOSTOS) GOARCH=$(shell go env GOHOSTARCH) CGO_ENABLED=1 \
+	go test -mod=readonly -bench '^Benchmark.*' -benchmem  -covermode=atomic \
+	-benchtime 5s -run '^Benchmark.*' -v
+
 test.unit:
 	${GO_TEST} -coverprofile=coverage.txt ./...
+
+test.benchmark:
+	${GO_BENCH} -coverprofile=coverage.bench.txt ./
 
 install.fuzz:
 	sh scripts/fuzz.sh install

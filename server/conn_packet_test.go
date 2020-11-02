@@ -1,3 +1,18 @@
+/*
+Copyright 2020 The arhat.dev Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package server
 
 import (
@@ -12,8 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"arhat.dev/libext"
-	"arhat.dev/libext/codecjson"
-	"arhat.dev/libext/codecpb"
+	"arhat.dev/libext/codec"
 	"arhat.dev/libext/types"
 )
 
@@ -32,12 +46,12 @@ func TestPacketConnectionManager_ListenAndServe(t *testing.T) {
 		{
 			name:    "pb",
 			regName: "foo",
-			codec:   new(codecpb.Codec),
+			codec:   codec.GetCodec(arhatgopb.CODEC_PROTOBUF),
 		},
 		{
 			name:    "json",
 			regName: "foo",
-			codec:   new(codecjson.Codec),
+			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
 		},
 	}
 
@@ -64,7 +78,7 @@ func testConnectionManagerListenAndServe(
 	connectionValidated := make(chan struct{})
 	cmdCh, msgCh := make(chan *arhatgopb.Cmd), make(chan *arhatgopb.Msg)
 
-	handleFunc := func(kind arhatgopb.ExtensionType, name string, codec types.Codec, conn io.ReadWriter) error {
+	handleFunc := func(_ net.Addr, kind arhatgopb.ExtensionType, name string, codec types.Codec, conn io.ReadWriter) error {
 		assert.EqualValues(t, regName, name)
 		assert.EqualValues(t, codec.Type(), codec.Type())
 

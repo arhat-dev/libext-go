@@ -1,3 +1,18 @@
+/*
+Copyright 2020 The arhat.dev Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package server
 
 import (
@@ -9,6 +24,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
@@ -17,42 +33,60 @@ import (
 	"arhat.dev/libext/types"
 )
 
+type Config struct {
+	Endpoints []EndpointConfig
+}
+
+type EndpointConfig struct {
+	Listen            string
+	TLS               *tls.Config
+	KeepaliveInterval time.Duration
+	MessageTimeout    time.Duration
+}
+
 func NewServer(
 	ctx context.Context,
 	logger log.Interface,
-	listenURLs map[string]*tls.Config,
+	config *Config,
 ) (*Server, error) {
-	if len(listenURLs) == 0 {
+	if len(config.Endpoints) == 0 {
 		return nil, fmt.Errorf("must provide at least one listen url")
 	}
 
 	srv := &Server{
 		ctx:               ctx,
 		logger:            logger,
+		connectionConfig:  make(map[string]*EndpointConfig),
 		extensionManagers: make(map[extensionKey]*ExtensionManager),
 		mu:                new(sync.RWMutex),
 	}
 
-	for listenURL, tlsConfig := range listenURLs {
-		u, err := url.Parse(listenURL)
+	for i, ep := range config.Endpoints {
+		u, err := url.Parse(ep.Listen)
 		if err != nil {
 			return nil, fmt.Errorf("invalid listen url: %w", err)
 		}
 
-		var connMgr connectionManager
+		var (
+			addr          net.Addr
+			createConnMgr func(
+				context.Context,
+				log.Interface,
+				net.Addr,
+				*tls.Config,
+				netConnectionHandleFunc,
+			) connectionManager
+		)
 		switch s := strings.ToLower(u.Scheme); s {
 		case "tcp", "tcp4", "tcp6": // nolint:goconst
-			var addr *net.TCPAddr
 			addr, err = net.ResolveTCPAddr(s, u.Host)
-			connMgr = newStreamConnectionManager(ctx, logger, addr, tlsConfig, srv.handleNewConn)
+			createConnMgr = newStreamConnectionManager
 		case "udp", "udp4", "udp6": // nolint:goconst
-			var addr *net.UDPAddr
 			addr, err = net.ResolveUDPAddr(s, u.Host)
-			connMgr = newPacketConnectionManager(ctx, logger, addr, tlsConfig, srv.handleNewConn)
+			createConnMgr = newPacketConnectionManager
 		case "unix": // nolint:goconst
-			var addr *net.UnixAddr
 			addr, err = net.ResolveUnixAddr(s, u.Path)
-			connMgr = newStreamConnectionManager(ctx, logger, addr, tlsConfig, srv.handleNewConn)
+			createConnMgr = newStreamConnectionManager
 		//case "fifo":
 		//	connector = func() (net.Conn, error) {
 		//		return nil, err
@@ -63,6 +97,11 @@ func NewServer(
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve %s listen address: %w", u.Scheme, err)
 		}
+		connMgr := createConnMgr(
+			ctx, logger, addr, ep.TLS, srv.handleNewConn,
+		)
+
+		srv.connectionConfig[addr.Network()+"://"+addr.String()] = &config.Endpoints[i]
 
 		srv.connectionManagers = append(srv.connectionManagers, connMgr)
 	}
@@ -79,6 +118,7 @@ type Server struct {
 	ctx    context.Context
 	logger log.Interface
 
+	connectionConfig   map[string]*EndpointConfig
 	connectionManagers []connectionManager
 	extensionManagers  map[extensionKey]*ExtensionManager
 
@@ -101,6 +141,13 @@ func (s *Server) ListenAndServe() error {
 	}
 
 	return err
+}
+
+// Close all listening endpoints
+func (s *Server) Close() {
+	for _, m := range s.connectionManagers {
+		_ = m.Close()
+	}
 }
 
 // Handle extension session with handleFunc, you can specify optional extension names (`extensions`) to restrict
@@ -147,6 +194,7 @@ func (s *Server) Handle(kind arhatgopb.ExtensionType, handleFactory ExtensionHan
 }
 
 func (s *Server) handleNewConn(
+	listenAddr net.Addr,
 	kind arhatgopb.ExtensionType,
 	name string,
 	codec types.Codec,
@@ -173,5 +221,29 @@ func (s *Server) handleNewConn(
 		return fmt.Errorf("no handler for %s", kind.String())
 	}
 
-	return mgr.handleStream(name, codec, conn)
+	ec, ok := s.connectionConfig[listenAddr.Network()+"://"+listenAddr.String()]
+	if !ok {
+		return fmt.Errorf("endpoint config not found")
+	}
+
+	keepaliveInterval := ec.KeepaliveInterval
+	messageTimeout := ec.MessageTimeout
+
+	if keepaliveInterval == 0 {
+		keepaliveInterval = time.Minute
+	}
+
+	if keepaliveInterval < time.Millisecond {
+		keepaliveInterval = time.Millisecond
+	}
+
+	if messageTimeout == 0 {
+		messageTimeout = time.Minute
+	}
+
+	if messageTimeout < time.Millisecond {
+		messageTimeout = time.Millisecond
+	}
+
+	return mgr.HandleStream(name, codec, keepaliveInterval, messageTimeout, conn)
 }

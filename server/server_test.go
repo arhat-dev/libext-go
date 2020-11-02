@@ -1,8 +1,22 @@
+/*
+Copyright 2020 The arhat.dev Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package server
 
 import (
 	"context"
-	"crypto/tls"
 	"testing"
 
 	"arhat.dev/arhat-proto/arhatgopb"
@@ -13,29 +27,51 @@ import (
 func TestNewServer(t *testing.T) {
 	tests := []struct {
 		name       string
-		listenURLs map[string]*tls.Config
+		listenURLs []EndpointConfig
 		expectErr  bool
 	}{
 		{
-			name:       "Single Valid",
-			listenURLs: map[string]*tls.Config{"tcp://localhost:0": nil},
-		},
-		{
-			name: "Multiple Valid",
-			listenURLs: map[string]*tls.Config{
-				"tcp://localhost:0":         nil,
-				"tcp4://localhost:0":        nil,
-				"tcp6://localhost:0":        nil,
-				"udp://localhost:0":         nil,
-				"udp4://localhost:0":        nil,
-				"udp6://localhost:0":        nil,
-				"unix:///path/to/sock/file": nil,
+			name: "Single Valid",
+			listenURLs: []EndpointConfig{
+				{
+					Listen: "tcp://localhost:0",
+				},
 			},
 		},
 		{
-			name:       "Single Empty",
-			listenURLs: map[string]*tls.Config{"": nil},
-			expectErr:  true,
+			name: "Multiple Valid",
+			listenURLs: []EndpointConfig{
+				{
+					Listen: "tcp://localhost:0",
+				},
+				{
+					Listen: "tcp4://localhost:0",
+				},
+				{
+					Listen: "tcp6://localhost:0",
+				},
+				{
+					Listen: "udp://localhost:0",
+				},
+				{
+					Listen: "udp4://localhost:0",
+				},
+				{
+					Listen: "udp6://localhost:0",
+				},
+				{
+					Listen: "unix:///path/to/sock/file",
+				},
+			},
+		},
+		{
+			name: "Single Empty",
+			listenURLs: []EndpointConfig{
+				{
+					Listen: "",
+				},
+			},
+			expectErr: true,
 		},
 		{
 			name:       "No ListenURL",
@@ -45,7 +81,7 @@ func TestNewServer(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			srv, err := NewServer(context.TODO(), log.NoOpLogger, test.listenURLs)
+			srv, err := NewServer(context.TODO(), log.NoOpLogger, &Config{Endpoints: test.listenURLs})
 
 			if test.expectErr {
 				assert.Error(t, err)
@@ -65,7 +101,7 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestServer_Handle(t *testing.T) {
-	srv, err := NewServer(context.TODO(), log.NoOpLogger, map[string]*tls.Config{"tcp://localhost:0": nil})
+	srv, err := NewServer(context.TODO(), log.NoOpLogger, &Config{Endpoints: []EndpointConfig{{Listen: "tcp://localhost:0"}}})
 	if !assert.NoError(t, err) {
 		assert.FailNow(t, "failed to create required simple server")
 		return

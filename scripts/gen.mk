@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: tidy
-tidy:
-	GOPROXY=direct GOSUMDB=off go mod tidy
-
-include scripts/test.mk
-include scripts/lint.mk
-include scripts/gen.mk
+gen.testdata.cert:
+	mkcert -ecdsa \
+		-cert-file ./testdata/tls-cert.pem \
+		-key-file ./testdata/tls-key.pem \
+		'127.0.0.1' '::1' 'localhost'
+	mkcert -client -ecdsa \
+		-cert-file ./testdata/client-tls-cert.pem \
+		-key-file ./testdata/client-tls-key.pem \
+		'127.0.0.1' '::1' 'localhost'

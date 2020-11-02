@@ -4,3 +4,6 @@
 /build
 
 coverage*.txt
+
+*.out
+*.test

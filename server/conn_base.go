@@ -1,8 +1,22 @@
+/*
+Copyright 2020 The arhat.dev Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package server
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -11,8 +25,7 @@ import (
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
 
-	"arhat.dev/libext/codecjson"
-	"arhat.dev/libext/codecpb"
+	"arhat.dev/libext/codec"
 	"arhat.dev/libext/types"
 )
 
@@ -23,11 +36,13 @@ func newBaseConnectionManager(
 	handleFunc netConnectionHandleFunc,
 ) *baseConnectionManager {
 	return &baseConnectionManager{
-		ctx:           ctx,
-		logger:        logger,
-		addr:          addr,
+		ctx:    ctx,
+		logger: logger,
+		addr:   addr,
+
 		handleNewConn: handleFunc,
-		mu:            new(sync.RWMutex),
+
+		mu: new(sync.RWMutex),
 	}
 }
 
@@ -44,11 +59,11 @@ type baseConnectionManager struct {
 func (m *baseConnectionManager) validateConnection(
 	conn io.Reader,
 ) (_ arhatgopb.ExtensionType, _ string, _ types.Codec, err error) {
-	onceDec := json.NewDecoder(conn)
-	onceDec.DisallowUnknownFields()
+	c := codec.GetCodec(arhatgopb.CODEC_JSON)
+	dec := c.NewDecoder(conn)
 
 	initialMsg := new(arhatgopb.Msg)
-	err = onceDec.Decode(initialMsg)
+	err = dec.Decode(initialMsg)
 	if err != nil {
 		return 0, "", nil, fmt.Errorf("invalid initial message: %w", err)
 	}
@@ -58,20 +73,10 @@ func (m *baseConnectionManager) validateConnection(
 	}
 
 	regMsg := new(arhatgopb.RegisterMsg)
-	err = regMsg.Unmarshal(initialMsg.Payload)
+	err = c.Unmarshal(initialMsg.Payload, regMsg)
 	if err != nil {
 		return 0, "", nil, fmt.Errorf("failed to unmarshal register message: %w", err)
 	}
 
-	var codec types.Codec
-	switch regMsg.Codec {
-	case arhatgopb.CODEC_PROTOBUF:
-		codec = new(codecpb.Codec)
-	case arhatgopb.CODEC_JSON:
-		codec = new(codecjson.Codec)
-	default:
-		return 0, "", nil, fmt.Errorf("unsupported codec")
-	}
-
-	return regMsg.ExtensionType, regMsg.Name, codec, nil
+	return regMsg.ExtensionType, regMsg.Name, codec.GetCodec(regMsg.Codec), nil
 }

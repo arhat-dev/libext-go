@@ -13,12 +13,35 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+package codecjson
 
-// Package extperipheral provides helper functions for creating peripheral extensions
-package extperipheral
-
-// import default codec
 import (
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	"encoding/json"
+	"io"
+
+	"arhat.dev/arhat-proto/arhatgopb"
+
+	"arhat.dev/libext/types"
 )
+
+type Codec struct{}
+
+func (c *Codec) Type() arhatgopb.CodecType {
+	return arhatgopb.CODEC_JSON
+}
+
+func (c *Codec) NewEncoder(w io.Writer) types.Encoder {
+	return json.NewEncoder(w)
+}
+
+func (c *Codec) NewDecoder(r io.Reader) types.Decoder {
+	return json.NewDecoder(r)
+}
+
+func (c *Codec) Marshal(v interface{}) ([]byte, error) {
+	return json.Marshal(v)
+}
+
+func (c *Codec) Unmarshal(data []byte, out interface{}) error {
+	return json.Unmarshal(data, out)
+}

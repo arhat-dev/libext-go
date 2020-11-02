@@ -70,6 +70,10 @@ jobs:
       #   token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
       #   fail_ci_if_error: true # optional (default = false)
 
+    - name: Benchmark
+      run: |
+        make test.benchmark
+
   # fuzz:
   #   runs-on: ubuntu-latest
   #   steps:

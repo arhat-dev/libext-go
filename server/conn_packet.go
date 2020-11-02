@@ -1,3 +1,18 @@
+/*
+Copyright 2020 The arhat.dev Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package server
 
 import (
@@ -52,13 +67,15 @@ func newPacketConnectionManager(
 	addr net.Addr,
 	tlsConfig *tls.Config,
 	handleFunc netConnectionHandleFunc,
-) *packetConnectionManager {
+) connectionManager {
 	return &packetConnectionManager{
 		baseConnectionManager: newBaseConnectionManager(ctx, logger, addr, handleFunc),
 		tlsConfig:             util.ConvertTLSConfigToDTLSConfig(tlsConfig),
 		connections:           new(sync.Map),
 	}
 }
+
+var _ connectionManager = (*packetConnectionManager)(nil)
 
 type packetConnectionManager struct {
 	*baseConnectionManager
@@ -130,7 +147,7 @@ func (m *packetConnectionManager) ListenAndServe() error {
 					return
 				}
 
-				err2 = m.handleNewConn(kind, name, codec, conn)
+				err2 = m.handleNewConn(m.addr, kind, name, codec, conn)
 				if err2 != nil {
 					m.logger.I("failed to handle new connection", log.Error(err2))
 					return
@@ -145,25 +162,27 @@ func (m *packetConnectionManager) ListenAndServe() error {
 				return fmt.Errorf("failed to read packet: %w", err2)
 			}
 
-			data := make([]byte, n)
-			_ = copy(data, buf[:n])
+			data := util.GetBytesBuf(n)
+			_ = copy(data[:n], buf[:n])
 
 			addr := ra.String()
 			v, ok := m.connections.Load(addr)
 			if ok {
 				pw := v.(io.WriteCloser)
-				_, err2 = pw.Write(data)
+				_, err2 = pw.Write(data[:n])
 				if err2 != nil {
 					_ = pw.Close()
 
 					m.logger.I("failed to write data to packet connection")
 				}
 
+				util.PutBytesBuf(&data)
 				continue
 			}
 
 			// not existing connection for this address, create a new one
-			kind, name, codec, err2 := m.validateConnection(bytes.NewReader(data))
+			kind, name, codec, err2 := m.validateConnection(bytes.NewReader(data[:n]))
+			util.PutBytesBuf(&data)
 			if err2 != nil {
 				m.logger.I("invalid new packet connection", log.Error(err2))
 				continue
@@ -179,7 +198,7 @@ func (m *packetConnectionManager) ListenAndServe() error {
 					m.connections.Delete(addr)
 				}()
 
-				err3 := m.handleNewConn(kind, name, codec, conn)
+				err3 := m.handleNewConn(m.addr, kind, name, codec, conn)
 				if err3 != nil {
 					m.logger.I("failed to handle new packet connection", log.Error(err3))
 					return

@@ -1,3 +1,18 @@
+/*
+Copyright 2020 The arhat.dev Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package libext
 
 import (
@@ -14,8 +29,10 @@ import (
 	"arhat.dev/arhat-proto/arhatgopb"
 	"github.com/stretchr/testify/assert"
 
-	"arhat.dev/libext/codecjson"
+	"arhat.dev/libext/codec"
+	"arhat.dev/libext/extperipheral"
 	"arhat.dev/libext/types"
+	"arhat.dev/libext/util"
 )
 
 type testPacketWriter struct {
@@ -27,6 +44,15 @@ func (w *testPacketWriter) Write(data []byte) (int, error) {
 	return w.conn.WriteTo(data, w.ra)
 }
 
+type benchmarkPeripheral struct {
+}
+
+func (t *benchmarkPeripheral) Connect(
+	target string, params map[string]string, tlsConfig *arhatgopb.TLSConfig,
+) (extperipheral.Peripheral, error) {
+	return nil, nil
+}
+
 func TestClient_ProcessNewStream(t *testing.T) {
 	tests := []struct {
 		network string
@@ -36,37 +62,37 @@ func TestClient_ProcessNewStream(t *testing.T) {
 		{
 			network: "tcp",
 			packet:  false,
-			codec:   new(codecjson.Codec),
+			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
 		},
 		{
 			network: "tcp4",
 			packet:  false,
-			codec:   new(codecjson.Codec),
+			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
 		},
 		{
 			network: "tcp6",
 			packet:  false,
-			codec:   new(codecjson.Codec),
+			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
 		},
 		{
 			network: "udp",
 			packet:  true,
-			codec:   new(codecjson.Codec),
+			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
 		},
 		{
 			network: "udp4",
 			packet:  true,
-			codec:   new(codecjson.Codec),
+			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
 		},
 		{
 			network: "udp6",
 			packet:  true,
-			codec:   new(codecjson.Codec),
+			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
 		},
 		{
 			network: "unix",
 			packet:  false,
-			codec:   new(codecjson.Codec),
+			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
 		},
 	}
 
@@ -95,17 +121,23 @@ func TestClient_ProcessNewStream(t *testing.T) {
 				}()
 			}
 
-			cmd, err := arhatgopb.NewCmd(1, 1, &arhatgopb.PeripheralOperateCmd{
-				Params: map[string]string{"test": "test"},
-			})
+			cmd, err := util.NewCmd(
+				test.codec.Marshal, arhatgopb.CMD_PERIPHERAL_CONNECT, 1, 1,
+				&arhatgopb.PeripheralOperateCmd{
+					Params: map[string]string{"test": "test"},
+				},
+			)
 			if !assert.NoError(t, err) {
 				assert.FailNow(t, "failed to create cmd")
 				return
 			}
 
-			msg, err := arhatgopb.NewMsg(1, 1, &arhatgopb.PeripheralOperationResultMsg{
-				Result: [][]byte{[]byte("test")},
-			})
+			msg, err := util.NewMsg(
+				test.codec.Marshal, arhatgopb.MSG_PERIPHERAL_OPERATION_RESULT, 1, 1,
+				&arhatgopb.PeripheralOperationResultMsg{
+					Result: [][]byte{[]byte("test")},
+				},
+			)
 			if !assert.NoError(t, err) {
 				assert.FailNow(t, "failed to create msg")
 				return

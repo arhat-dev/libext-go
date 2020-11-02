@@ -14,11 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package extperipheral provides helper functions for creating peripheral extensions
-package extperipheral
+// Package codecjson uses stdlib json for libext
+package codecjson
 
-// import default codec
 import (
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	"arhat.dev/arhat-proto/arhatgopb"
+
+	"arhat.dev/libext/codec"
 )
+
+func init() {
+	codec.RegisterCodec(arhatgopb.CODEC_JSON, new(Codec))
+}

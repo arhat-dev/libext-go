@@ -1,3 +1,18 @@
+/*
+Copyright 2020 The arhat.dev Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package server
 
 import (
@@ -15,12 +30,18 @@ import (
 	"arhat.dev/libext/types"
 )
 
-func NewExtensionContext(parent context.Context, name string, sendCmd CmdSendFunc) *ExtensionContext {
+func NewExtensionContext(
+	parent context.Context,
+	name string,
+	codec types.Codec,
+	sendCmd CmdSendFunc,
+) *ExtensionContext {
 	extCtx, cancel := context.WithCancel(parent)
 	return &ExtensionContext{
 		Context: extCtx,
 		Name:    name,
 		SendCmd: sendCmd,
+		Codec:   codec,
 
 		close: cancel,
 	}
@@ -31,6 +52,7 @@ type ExtensionContext struct {
 	Context context.Context
 	Name    string
 	SendCmd CmdSendFunc
+	Codec   types.Codec
 
 	close context.CancelFunc
 }
@@ -69,8 +91,9 @@ func NewExtensionManager(
 	}
 
 	return &ExtensionManager{
-		ctx:              ctx,
-		logger:           logger,
+		ctx:    ctx,
+		logger: logger,
+
 		createHandleFunc: handleFuncFactory,
 
 		registeredExtensions: make(map[string]struct{}),
@@ -80,8 +103,9 @@ func NewExtensionManager(
 }
 
 type ExtensionManager struct {
-	ctx              context.Context
-	logger           log.Interface
+	ctx    context.Context
+	logger log.Interface
+
 	createHandleFunc ExtensionHandleFuncFactory
 
 	registeredExtensions map[string]struct{}
@@ -89,7 +113,14 @@ type ExtensionManager struct {
 	mu *sync.RWMutex
 }
 
-func (m *ExtensionManager) handleStream(name string, codec types.Codec, stream io.ReadWriter) error {
+// nolint:gocyclo
+func (m *ExtensionManager) HandleStream(
+	name string,
+	codec types.Codec,
+	keepaliveInterval time.Duration,
+	messageTimeout time.Duration,
+	stream io.ReadWriter,
+) error {
 	// register new extension
 	err := func() error {
 		m.mu.Lock()
@@ -107,6 +138,12 @@ func (m *ExtensionManager) handleStream(name string, codec types.Codec, stream i
 		return fmt.Errorf("failed to register extension: %w", err)
 	}
 
+	wg, ctx := errgroup.WithContext(m.ctx)
+
+	// timeout queue for slow responses and keepalive
+	tq := queue.NewTimeoutQueue()
+	tq.Start(ctx.Done())
+
 	defer func() {
 		m.mu.Lock()
 		defer m.mu.Unlock()
@@ -114,47 +151,38 @@ func (m *ExtensionManager) handleStream(name string, codec types.Codec, stream i
 		delete(m.registeredExtensions, name)
 	}()
 
-	wg, ctx := errgroup.WithContext(m.ctx)
-	enc := codec.NewEncoder(stream)
-
-	// timeout queue for slow responses
-	tq := queue.NewTimeoutQueue()
-	tq.Start(ctx.Done())
-
-	msgWait := new(sync.Map)
-
-	closeMsgWait := func(v interface{}) {
-		if v == nil {
-			return
-		}
-		mv, ok := v.(*msgWaitValue)
-		if !ok {
-			return
-		}
-
-		mv.close()
-	}
-
+	cmdWriteCh := make(chan *arhatgopb.Cmd, 1)
+	keepaliveCh := make(chan struct{}, 1)
 	wg.Go(func() error {
-		takeCh := tq.TakeCh()
+		enc := codec.NewEncoder(stream)
 		for {
 			select {
-			case <-ctx.Done():
-				// make everything timeout
-				msgWait.Range(func(key, v interface{}) bool {
-					closeMsgWait(v)
-					msgWait.Delete(key)
-					return true
+			case _, more := <-keepaliveCh:
+				if !more {
+					return io.ErrUnexpectedEOF
+				}
+
+				err2 := enc.Encode(&arhatgopb.Cmd{
+					Kind: arhatgopb.CMD_PING,
 				})
-				return io.EOF
-			case td := <-takeCh:
-				v, _ := msgWait.Load(td.Key)
-				closeMsgWait(v)
-				msgWait.Delete(td.Key)
+				if err2 != nil {
+					// failed to ping, connection probably gone (especially for udp)
+					return io.ErrUnexpectedEOF
+				}
+			case cmd, more := <-cmdWriteCh:
+				if !more {
+					return io.EOF
+				}
+
+				err2 := enc.Encode(cmd)
+				if err2 != nil {
+					return fmt.Errorf("failed to encode extension command: %w", err2)
+				}
 			}
 		}
 	})
 
+	msgWait := new(sync.Map)
 	sendCmd := func(cmd *arhatgopb.Cmd) (*arhatgopb.Msg, error) {
 		waitV := newMsgWaitValue()
 		key := msgWaitKey{
@@ -166,7 +194,7 @@ func (m *ExtensionManager) handleStream(name string, codec types.Codec, stream i
 			waitV.close()
 			return nil, fmt.Errorf("cmd sent before, no response yet")
 		}
-		_ = tq.OfferWithDelay(key, nil, time.Minute)
+		_ = tq.OfferWithDelay(key, nil, messageTimeout)
 		defer func() {
 			tq.Remove(key)
 
@@ -177,11 +205,7 @@ func (m *ExtensionManager) handleStream(name string, codec types.Codec, stream i
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		default:
-			err2 := enc.Encode(cmd)
-			if err2 != nil {
-				return nil, fmt.Errorf("failed to encode extension command: %w", err2)
-			}
+		case cmdWriteCh <- cmd:
 		}
 
 		// wait for message response
@@ -196,6 +220,56 @@ func (m *ExtensionManager) handleStream(name string, codec types.Codec, stream i
 			return msg, nil
 		}
 	}
+
+	wg.Go(func() error {
+		defer func() {
+			close(keepaliveCh)
+			tq.Clear()
+		}()
+
+		_ = tq.OfferWithDelay(name, nil, keepaliveInterval)
+		closeMsgWait := func(v interface{}) {
+			if v == nil {
+				return
+			}
+			mv, ok := v.(*msgWaitValue)
+			if !ok {
+				return
+			}
+
+			mv.close()
+		}
+
+		takeCh := tq.TakeCh()
+		for {
+			select {
+			case <-ctx.Done():
+				// make everything timeout
+				msgWait.Range(func(key, v interface{}) bool {
+					closeMsgWait(v)
+					msgWait.Delete(key)
+					return true
+				})
+				return io.EOF
+			case td := <-takeCh:
+				switch td.Key.(type) {
+				case msgWaitKey:
+					v, _ := msgWait.Load(td.Key)
+					closeMsgWait(v)
+					msgWait.Delete(td.Key)
+				case string:
+					select {
+					case keepaliveCh <- struct{}{}:
+					case <-ctx.Done():
+						// hand over to outer select
+						continue
+					}
+
+					_ = tq.OfferWithDelay(name, nil, keepaliveInterval)
+				}
+			}
+		}
+	})
 
 	handle, onOutOfBandMsgRecv := m.createHandleFunc(name)
 
@@ -221,7 +295,7 @@ func (m *ExtensionManager) handleStream(name string, codec types.Codec, stream i
 	}
 
 	wg.Go(func() error {
-		handle(NewExtensionContext(ctx, name, sendCmd))
+		handle(NewExtensionContext(ctx, name, codec, sendCmd))
 
 		// return trivial error to trigger context exit
 		return io.EOF

@@ -1,3 +1,18 @@
+/*
+Copyright 2020 The arhat.dev Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package server
 
 import (
@@ -7,12 +22,13 @@ import (
 	"io/ioutil"
 	"net"
 	"testing"
+	"time"
 
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
 	"github.com/stretchr/testify/assert"
 
-	"arhat.dev/libext/codecjson"
+	"arhat.dev/libext/codec"
 )
 
 func TestExtensionManager_handleStream(t *testing.T) {
@@ -103,11 +119,11 @@ func TestExtensionManager_handleStream(t *testing.T) {
 				}()
 			} else {
 				go func() {
-					_ = mgr.handleStream("bar", new(codecjson.Codec), new(bytes.Buffer))
+					_ = mgr.HandleStream("bar", codec.GetCodec(arhatgopb.CODEC_JSON), time.Hour, time.Hour, new(bytes.Buffer))
 				}()
 			}
 
-			err = mgr.handleStream(test.regName, new(codecjson.Codec), srvConn)
+			err = mgr.HandleStream(test.regName, codec.GetCodec(arhatgopb.CODEC_JSON), time.Hour, time.Hour, srvConn)
 			_ = srvConn.Close()
 			if test.expectErr {
 				assert.Error(t, err)
