@@ -90,11 +90,5 @@ type examplePeripheralConnector struct{}
 func (c *examplePeripheralConnector) Connect(
 	target string, params map[string]string, tlsConfig *arhatgopb.TLSConfig,
 ) (extperipheral.Peripheral, error) {
-	tlsCfg, err := tlsConfig.GetTLSConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	_ = tlsCfg
 	return &examplePeripheral{}, nil
 }
