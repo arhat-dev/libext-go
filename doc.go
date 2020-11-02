@@ -18,8 +18,8 @@ limitations under the License.
 // controllers with arhat-proto
 package libext
 
-// import default codec
 import (
+	// import default codec
 	_ "arhat.dev/libext/codec/codecjson"
 	_ "arhat.dev/libext/codec/codecpb"
 )

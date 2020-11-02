@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -45,16 +46,16 @@ func BenchmarkSuite(b *testing.B) {
 	}
 
 	var (
-		protos = []string{ /*"tcp4", */ "tcp6", "udp4", "udp6"}
+		protos = []string{"tcp4", "tcp6", "udp4", "udp6"}
 		codecs = []types.Codec{
 			codec.GetCodec(arhatgopb.CODEC_PROTOBUF),
 			codec.GetCodec(arhatgopb.CODEC_PROTOBUF),
 		}
 	)
 
-	// if runtime.GOOS != "windows" {
-	// 	protos = append(protos, "unix")
-	// }
+	if runtime.GOOS != "windows" {
+		protos = append(protos, "unix")
+	}
 
 	var benchmarks []benchCase
 	for i := range protos {

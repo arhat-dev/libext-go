@@ -18,7 +18,6 @@ package libext
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -30,6 +29,7 @@ import (
 	"github.com/pion/dtls/v2"
 	"golang.org/x/sync/errgroup"
 
+	"arhat.dev/libext/codec"
 	"arhat.dev/libext/types"
 	"arhat.dev/libext/util"
 )
@@ -42,7 +42,7 @@ func NewClient(
 	ctx context.Context,
 	kind arhatgopb.ExtensionType,
 	name string,
-	codec types.Codec,
+	c types.Codec,
 
 	// connection management
 	dialer *net.Dialer,
@@ -54,16 +54,17 @@ func NewClient(
 		return nil, fmt.Errorf("invalid endpoint url: %w", err)
 	}
 
-	regMsg, err := util.NewMsg(json.Marshal, arhatgopb.MSG_REGISTER, 0, 0, &arhatgopb.RegisterMsg{
+	marshal := codec.GetCodec(arhatgopb.CODEC_JSON).Marshal
+	regMsg, err := util.NewMsg(marshal, arhatgopb.MSG_REGISTER, 0, 0, &arhatgopb.RegisterMsg{
 		Name:          name,
 		ExtensionType: kind,
-		Codec:         codec.Type(),
+		Codec:         c.Type(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create register message: %w", err)
 	}
 
-	regMsgBytes, err := json.Marshal(regMsg)
+	regMsgBytes, err := marshal(regMsg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal register message: %w", err)
 	}
@@ -113,7 +114,7 @@ func NewClient(
 	return &Client{
 		ctx: ctx,
 
-		codec:  codec,
+		codec:  c,
 		regMsg: regMsgBytes,
 
 		createConnection: func() (_ net.Conn, err error) {

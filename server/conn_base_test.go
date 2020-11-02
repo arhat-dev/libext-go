@@ -22,10 +22,11 @@ import (
 	"testing"
 
 	"arhat.dev/arhat-proto/arhatgopb"
-	"arhat.dev/libext/codec"
-	"arhat.dev/libext/util"
 	"arhat.dev/pkg/log"
 	"github.com/stretchr/testify/assert"
+
+	"arhat.dev/libext/codec"
+	"arhat.dev/libext/util"
 )
 
 func TestBaseConnectionManager_validateConnection(t *testing.T) {

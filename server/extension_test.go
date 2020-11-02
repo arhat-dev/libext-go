@@ -18,7 +18,6 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io/ioutil"
 	"net"
 	"testing"
@@ -50,13 +49,14 @@ func TestExtensionManager_handleStream(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			c := codec.GetCodec(arhatgopb.CODEC_JSON)
 			cmd := &arhatgopb.Cmd{
 				Kind:    100,
 				Id:      1,
 				Seq:     1,
 				Payload: []byte("cmd"),
 			}
-			cmdBytes, err := json.Marshal(cmd)
+			cmdBytes, err := c.Marshal(cmd)
 			if !assert.NoError(t, err) {
 				assert.FailNow(t, "failed to marshal required cmd")
 				return
@@ -68,7 +68,7 @@ func TestExtensionManager_handleStream(t *testing.T) {
 				Ack:     1,
 				Payload: []byte("msg"),
 			}
-			msgRespBytes, err := json.Marshal(msgResp)
+			msgRespBytes, err := c.Marshal(msgResp)
 			if !assert.NoError(t, err) {
 				assert.FailNow(t, "failed to marshal required msg")
 				return
@@ -119,11 +119,11 @@ func TestExtensionManager_handleStream(t *testing.T) {
 				}()
 			} else {
 				go func() {
-					_ = mgr.HandleStream("bar", codec.GetCodec(arhatgopb.CODEC_JSON), time.Hour, time.Hour, new(bytes.Buffer))
+					_ = mgr.HandleStream("bar", c, time.Hour, time.Hour, new(bytes.Buffer))
 				}()
 			}
 
-			err = mgr.HandleStream(test.regName, codec.GetCodec(arhatgopb.CODEC_JSON), time.Hour, time.Hour, srvConn)
+			err = mgr.HandleStream(test.regName, c, time.Hour, time.Hour, srvConn)
 			_ = srvConn.Close()
 			if test.expectErr {
 				assert.Error(t, err)

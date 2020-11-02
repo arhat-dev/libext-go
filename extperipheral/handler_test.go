@@ -55,18 +55,23 @@ func TestHandler_HandleCmd(t *testing.T) {
 		codec types.Codec
 	}{
 		{
+			name:  "pb",
 			codec: codec.GetCodec(arhatgopb.CODEC_PROTOBUF),
+		},
+		{
+			name:  "json",
+			codec: codec.GetCodec(arhatgopb.CODEC_JSON),
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			h := NewHandler(log.NoOpLogger, test.codec.Unmarshal, &testPeripheralConnector{})
 			{
-				connectCmdBytes, err := (&arhatgopb.PeripheralConnectCmd{
+				connectCmdBytes, err := test.codec.Marshal(&arhatgopb.PeripheralConnectCmd{
 					Target: "test",
 					Params: map[string]string{"test": "test"},
 					Tls:    nil,
-				}).Marshal()
+				})
 				assert.NoError(t, err)
 
 				msg, err := h.HandleCmd(1, arhatgopb.CMD_PERIPHERAL_CONNECT, connectCmdBytes)
@@ -75,10 +80,10 @@ func TestHandler_HandleCmd(t *testing.T) {
 			}
 
 			{
-				operateCmdBytes, err := (&arhatgopb.PeripheralOperateCmd{
+				operateCmdBytes, err := test.codec.Marshal(&arhatgopb.PeripheralOperateCmd{
 					Params: map[string]string{"test": "test"},
 					Data:   nil,
-				}).Marshal()
+				})
 				assert.NoError(t, err)
 
 				msg, err := h.HandleCmd(1, arhatgopb.CMD_PERIPHERAL_OPERATE, operateCmdBytes)
@@ -87,9 +92,9 @@ func TestHandler_HandleCmd(t *testing.T) {
 			}
 
 			{
-				metricCmdBytes, err := (&arhatgopb.PeripheralMetricsCollectCmd{
+				metricCmdBytes, err := test.codec.Marshal(&arhatgopb.PeripheralMetricsCollectCmd{
 					Params: map[string]string{"test": "test"},
-				}).Marshal()
+				})
 				assert.NoError(t, err)
 
 				msg, err := h.HandleCmd(1, arhatgopb.CMD_PERIPHERAL_COLLECT_METRICS, metricCmdBytes)
@@ -98,7 +103,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 			}
 
 			{
-				closeCmdBytes, err := (&arhatgopb.PeripheralCloseCmd{}).Marshal()
+				closeCmdBytes, err := test.codec.Marshal(&arhatgopb.PeripheralCloseCmd{})
 				assert.NoError(t, err)
 
 				msg, err := h.HandleCmd(1, arhatgopb.CMD_PERIPHERAL_CLOSE, closeCmdBytes)
@@ -107,9 +112,9 @@ func TestHandler_HandleCmd(t *testing.T) {
 			}
 
 			{
-				invalidOperateCmdBytes, err := (&arhatgopb.PeripheralOperateCmd{
+				invalidOperateCmdBytes, err := test.codec.Marshal(&arhatgopb.PeripheralOperateCmd{
 					Params: map[string]string{"test": "test"},
-				}).Marshal()
+				})
 				assert.NoError(t, err)
 
 				_, err = h.HandleCmd(1, arhatgopb.CMD_PERIPHERAL_OPERATE, invalidOperateCmdBytes)

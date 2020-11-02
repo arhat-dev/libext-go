@@ -18,8 +18,8 @@ limitations under the License.
 // connections from extension controllers
 package server
 
-// import default codec
 import (
+	// import default codec
 	_ "arhat.dev/libext/codec/codecjson"
 	_ "arhat.dev/libext/codec/codecpb"
 )
