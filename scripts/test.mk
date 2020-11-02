@@ -13,10 +13,10 @@
 # limitations under the License.
 
 GO_TEST := GOOS=$(shell go env GOHOSTOS) GOARCH=$(shell go env GOHOSTARCH) CGO_ENABLED=1 \
-	go test -mod=readonly -v -failfast -covermode=atomic -race -cpu 1,2,4
+	go test -timeout 30m -mod=readonly -v -failfast -covermode=atomic -race -cpu 1,2,4
 
 GO_BENCH := GOOS=$(shell go env GOHOSTOS) GOARCH=$(shell go env GOHOSTARCH) CGO_ENABLED=1 \
-	go test -mod=readonly -bench '^Benchmark.*' -benchmem  -covermode=atomic \
+	go test -timeout 30m -mod=readonly -bench '^Benchmark.*' -benchmem  -covermode=atomic \
 	-benchtime 5s -run '^Benchmark.*' -v
 
 test.unit:
