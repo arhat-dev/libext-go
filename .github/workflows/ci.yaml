@@ -69,6 +69,7 @@ jobs:
         make test.benchmark
 
     - name: Report Test Coverage
+      if: matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@v1
       # with:
       #   token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
