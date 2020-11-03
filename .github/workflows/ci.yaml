@@ -63,13 +63,21 @@ jobs:
     - name: Unit Tests
       run: |
         make test.unit
+    
+    - name: Benchmark
+      if: matrix.os != 'windows-latest'
+      continue-on-error: false
+      run: |
+        make test.benchmark
 
     - name: Benchmark
+      if: matrix.os == 'windows-latest'
+      continue-on-error: true
+      timeout-minutes: 15
       run: |
         make test.benchmark
 
     - name: Report Test Coverage
-      if: matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@v1
       # with:
       #   token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
