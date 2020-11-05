@@ -34,12 +34,6 @@ import (
 )
 
 func TestStreamConnectionManager_ListenAndServe(t *testing.T) {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:65530")
-	if !assert.NoError(t, err) {
-		assert.FailNow(t, "failed to resolve required tcp addr")
-		return
-	}
-
 	tests := []struct {
 		name    string
 		regName string
@@ -58,13 +52,7 @@ func TestStreamConnectionManager_ListenAndServe(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			testConnectionManagerListenAndServe(t, addr, test.regName, test.codec,
-				func(handleFunc netConnectionHandleFunc) connectionManager {
-					return newStreamConnectionManager(context.TODO(), log.NoOpLogger, addr, nil, handleFunc)
-				},
-			)
-
+		t.Run(test.name+"/pipe", func(t *testing.T) {
 			pipePath, err := iohelper.TempFilename(os.TempDir(), "*")
 			assert.NoError(t, err)
 			if runtime.GOOS == "windows" {
@@ -74,6 +62,20 @@ func TestStreamConnectionManager_ListenAndServe(t *testing.T) {
 			testConnectionManagerListenAndServe(t, pipeAddr, test.regName, test.codec,
 				func(handleFunc netConnectionHandleFunc) connectionManager {
 					return newStreamConnectionManager(context.TODO(), log.NoOpLogger, pipeAddr, nil, handleFunc)
+				},
+			)
+		})
+
+		t.Run(test.name+"/tcp", func(t *testing.T) {
+			addr, err := net.ResolveTCPAddr("tcp", "localhost:65530")
+			if !assert.NoError(t, err) {
+				assert.FailNow(t, "failed to resolve required tcp addr")
+				return
+			}
+
+			testConnectionManagerListenAndServe(t, addr, test.regName, test.codec,
+				func(handleFunc netConnectionHandleFunc) connectionManager {
+					return newStreamConnectionManager(context.TODO(), log.NoOpLogger, addr, nil, handleFunc)
 				},
 			)
 		})

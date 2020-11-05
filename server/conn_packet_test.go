@@ -90,7 +90,7 @@ func testConnectionManagerListenAndServe(
 	mgr := createMgr(handleFunc)
 
 	go func() {
-		_ = mgr.ListenAndServe()
+		t.Log(mgr.ListenAndServe())
 	}()
 
 	client, err := libext.NewClient(

@@ -17,7 +17,7 @@ GO_TEST := GOOS=$(shell go env GOHOSTOS) GOARCH=$(shell go env GOHOSTARCH) CGO_E
 
 GO_BENCH := GOOS=$(shell go env GOHOSTOS) GOARCH=$(shell go env GOHOSTARCH) CGO_ENABLED=1 \
 	go test -timeout 30m -mod=readonly -bench '^Benchmark.*' -benchmem  -covermode=atomic \
-	-benchtime 5s -run '^Benchmark.*' -v
+	-benchtime=100000x -run '^Benchmark.*' -v
 
 test.unit:
 	${GO_TEST} -coverprofile=coverage.txt ./...
