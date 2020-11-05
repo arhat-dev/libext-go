@@ -68,7 +68,7 @@ func TestStreamConnectionManager_ListenAndServe(t *testing.T) {
 			pipePath, err := iohelper.TempFilename(os.TempDir(), "*")
 			assert.NoError(t, err)
 			if runtime.GOOS == "windows" {
-				pipePath = `\\.\pipe\test-` + test.name
+				pipePath = `test-` + test.name
 			}
 			pipeAddr := &pipenet.PipeAddr{Path: pipePath}
 			testConnectionManagerListenAndServe(t, pipeAddr, test.regName, test.codec,
