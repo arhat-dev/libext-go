@@ -72,10 +72,10 @@ issues:
     linters:
     - gocritic
 
-  - text: "string `windows`"
+  - text: string `windows`
     linters:
     - goconst
 
-  - text: "string `pipe`"
+  - text: string `pipe`
     linters:
     - goconst
