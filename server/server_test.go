@@ -63,6 +63,9 @@ func TestNewServer(t *testing.T) {
 				{
 					Listen: "unix:///path/to/sock/file",
 				},
+				{
+					Listen: "pipe:///path/to/fifo",
+				},
 			},
 		},
 		{

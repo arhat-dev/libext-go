@@ -9,7 +9,7 @@ Library for building [`arhat`](https://github.com/arhat-dev/arhat) extensions in
 
 ## Support Matrix
 
-- Protocols: `tcp`, `tcp-tls`, `udp`, `udp-dtls`, `unix`, `unix-tls`
+- Protocols: `tcp`, `tcp-tls`, `udp`, `udp-dtls`, `unix`, `unix-tls`, `pipe`, `pipe-tls`
 - Codec: `json`, `protobuf`
 
 please refer to [Benchmark](#benchmark) for performance evaluation of different combinations

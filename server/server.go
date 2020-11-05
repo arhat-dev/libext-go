@@ -29,6 +29,7 @@ import (
 
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
+	"arhat.dev/pkg/pipenet"
 	"golang.org/x/sync/errgroup"
 
 	"arhat.dev/libext/types"
@@ -88,10 +89,9 @@ func NewServer(
 		case "unix": // nolint:goconst
 			addr, err = net.ResolveUnixAddr(s, u.Path)
 			createConnMgr = newStreamConnectionManager
-		//case "fifo":
-		//	connector = func() (net.Conn, error) {
-		//		return nil, err
-		//	}
+		case "pipe":
+			addr, err = &pipenet.PipeAddr{Path: u.Path}, nil
+			createConnMgr = newStreamConnectionManager
 		default:
 			return nil, fmt.Errorf("unsupported protocol %q", u.Scheme)
 		}

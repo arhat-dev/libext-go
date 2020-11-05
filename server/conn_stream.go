@@ -25,6 +25,7 @@ import (
 
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
+	"arhat.dev/pkg/pipenet"
 
 	"arhat.dev/libext/types"
 )
@@ -81,9 +82,20 @@ func (m *streamConnectionManager) ListenAndServe() error {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 
-		l, err := net.Listen(m.addr.Network(), m.addr.String())
-		if err != nil {
-			return nil, err
+		var (
+			l   net.Listener
+			err error
+		)
+		if m.addr.Network() == "pipe" {
+			l, err = pipenet.ListenPipe(m.addr.String(), "", 0666)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			l, err = net.Listen(m.addr.Network(), m.addr.String())
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		if m.tlsConfig != nil {

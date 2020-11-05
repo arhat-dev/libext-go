@@ -19,10 +19,14 @@ package server
 import (
 	"context"
 	"net"
+	"os"
+	"runtime"
 	"testing"
 
 	"arhat.dev/arhat-proto/arhatgopb"
+	"arhat.dev/pkg/iohelper"
 	"arhat.dev/pkg/log"
+	"arhat.dev/pkg/pipenet"
 	"github.com/stretchr/testify/assert"
 
 	"arhat.dev/libext/codec"
@@ -58,6 +62,18 @@ func TestStreamConnectionManager_ListenAndServe(t *testing.T) {
 			testConnectionManagerListenAndServe(t, addr, test.regName, test.codec,
 				func(handleFunc netConnectionHandleFunc) connectionManager {
 					return newStreamConnectionManager(context.TODO(), log.NoOpLogger, addr, nil, handleFunc)
+				},
+			)
+
+			pipePath, err := iohelper.TempFilename(os.TempDir(), "*")
+			assert.NoError(t, err)
+			if runtime.GOOS == "windows" {
+				pipePath = `\\.\pipe\test-` + test.name
+			}
+			pipeAddr := &pipenet.PipeAddr{Path: pipePath}
+			testConnectionManagerListenAndServe(t, pipeAddr, test.regName, test.codec,
+				func(handleFunc netConnectionHandleFunc) connectionManager {
+					return newStreamConnectionManager(context.TODO(), log.NoOpLogger, pipeAddr, nil, handleFunc)
 				},
 			)
 		})

@@ -17,6 +17,7 @@ limitations under the License.
 package libext
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 	"time"
 
 	"arhat.dev/arhat-proto/arhatgopb"
+	"arhat.dev/pkg/pipenet"
 	"github.com/pion/dtls/v2"
 	"golang.org/x/sync/errgroup"
 
@@ -55,8 +57,9 @@ func NewClient(
 		return nil, fmt.Errorf("invalid endpoint url: %w", err)
 	}
 
-	marshal := codec.GetCodec(arhatgopb.CODEC_JSON).Marshal
-	regMsg, err := util.NewMsg(marshal, arhatgopb.MSG_REGISTER, 0, 0, &arhatgopb.RegisterMsg{
+	jsonCodec := codec.GetCodec(arhatgopb.CODEC_JSON)
+
+	regMsg, err := util.NewMsg(jsonCodec.Marshal, arhatgopb.MSG_REGISTER, 0, 0, &arhatgopb.RegisterMsg{
 		Name:          name,
 		ExtensionType: kind,
 		Codec:         c.Type(),
@@ -65,7 +68,8 @@ func NewClient(
 		return nil, fmt.Errorf("failed to create register message: %w", err)
 	}
 
-	regMsgBytes, err := marshal(regMsg)
+	regMsgBuf := new(bytes.Buffer)
+	err = jsonCodec.NewEncoder(regMsgBuf).Encode(regMsg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal register message: %w", err)
 	}
@@ -101,10 +105,10 @@ func NewClient(
 		connector = func() (net.Conn, error) {
 			return dialer.DialContext(ctx, s, u.Path)
 		}
-	//case "fifo":
-	//	connector = func() (net.Conn, error) {
-	//		return nil, err
-	//	}
+	case "pipe":
+		connector = func() (net.Conn, error) {
+			return pipenet.DialContext(ctx, u.Path)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported endpoint protocol %q", u.Scheme)
 	}
@@ -116,7 +120,7 @@ func NewClient(
 		ctx: ctx,
 
 		codec:  c,
-		regMsg: regMsgBytes,
+		regMsg: regMsgBuf.Bytes(),
 
 		createConnection: func() (_ net.Conn, err error) {
 			var innerConn net.Conn
@@ -205,14 +209,14 @@ func (c *Client) ProcessNewStream(
 				}
 			case msg, more := <-msgCh:
 				if !more {
-					return nil
+					return io.EOF
 				}
 				err2 := enc.Encode(msg)
 				if err2 != nil {
 					return fmt.Errorf("failed to encode message: %w", err2)
 				}
 			case <-ctx.Done():
-				return nil
+				return io.EOF
 			}
 		}
 	})
@@ -235,7 +239,7 @@ func (c *Client) ProcessNewStream(
 				select {
 				case keepaliveCh <- struct{}{}:
 				case <-ctx.Done():
-					return nil
+					return io.EOF
 				}
 				continue
 			}
@@ -243,7 +247,7 @@ func (c *Client) ProcessNewStream(
 			select {
 			case cmdCh <- cmd:
 			case <-ctx.Done():
-				return nil
+				return io.EOF
 			}
 		}
 	})
@@ -268,7 +272,7 @@ func checkNetworkReadErr(err error) error {
 			return io.EOF
 		}
 	default:
-		if strings.Contains(err.Error(), "use of closed network connection") {
+		if strings.Contains(err.Error(), "closed") {
 			return io.EOF
 		}
 

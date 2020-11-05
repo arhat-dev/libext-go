@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"runtime"
@@ -28,6 +27,8 @@ import (
 	"testing"
 
 	"arhat.dev/arhat-proto/arhatgopb"
+	"arhat.dev/pkg/iohelper"
+	"arhat.dev/pkg/pipenet"
 	"github.com/stretchr/testify/assert"
 
 	"arhat.dev/libext/codec"
@@ -55,71 +56,61 @@ func (t *benchmarkPeripheral) Connect(
 }
 
 func TestClient_ProcessNewStream(t *testing.T) {
-	tests := []struct {
+	type testCase struct {
 		network string
 		packet  bool
 		codec   types.Codec
-	}{
-		{
-			network: "tcp",
-			packet:  false,
-			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
-		},
-		{
-			network: "tcp4",
-			packet:  false,
-			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
-		},
-		{
-			network: "tcp6",
-			packet:  false,
-			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
-		},
-		{
-			network: "udp",
-			packet:  true,
-			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
-		},
-		{
-			network: "udp4",
-			packet:  true,
-			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
-		},
-		{
-			network: "udp6",
-			packet:  true,
-			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
-		},
-		{
-			network: "unix",
-			packet:  false,
-			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
-		},
+	}
+
+	var tests []testCase
+	for _, network := range []string{"tcp", "tcp4", "tcp6", "udp", "udp4", "udp6", "unix", "pipe"} {
+		isPkt := strings.HasPrefix(network, "udp")
+		for _, c := range []arhatgopb.CodecType{arhatgopb.CODEC_JSON, arhatgopb.CODEC_PROTOBUF} {
+			tests = append(tests, testCase{
+				network: network,
+				packet:  isPkt,
+				codec:   codec.GetCodec(c),
+			})
+		}
 	}
 
 	for _, test := range tests {
 		t.Run(test.network, func(t *testing.T) {
-			addr := "localhost:0"
-			if strings.HasPrefix(test.network, "unix") {
+			var (
+				listenAddr string
+				err        error
+			)
+
+			switch {
+			case strings.HasPrefix(test.network, "unix"):
 				if runtime.GOOS == "windows" {
 					t.Skip("ignored unix socket on windows")
 					t.SkipNow()
 					return
 				}
 
-				f, err := ioutil.TempFile(os.TempDir(), fmt.Sprintf("test.%s.*", test.network))
-				if !assert.NoError(t, err) {
-					assert.FailNow(t, "failed to create temporary unix sock file")
+				listenAddr, err = iohelper.TempFilename(os.TempDir(), fmt.Sprintf("test.%s.*", test.network))
+				if !assert.NoError(t, err, "failed to create temporary unix sock file") {
 					return
 				}
-				addr = f.Name()
-
-				_ = f.Close()
-				_ = os.Remove(addr)
-
 				defer func() {
-					_ = os.Remove(addr)
+					_ = os.Remove(listenAddr)
 				}()
+			case test.network == "pipe":
+				switch runtime.GOOS {
+				case "windows":
+					listenAddr = fmt.Sprintf(`\\.\pipe\test-%s`, test.network)
+				default:
+					listenAddr, err = iohelper.TempFilename(os.TempDir(), "*")
+					if !assert.NoError(t, err) {
+						return
+					}
+					defer func() {
+						_ = os.Remove(listenAddr)
+					}()
+				}
+			default:
+				listenAddr = "localhost:0"
 			}
 
 			cmd, err := util.NewCmd(
@@ -150,9 +141,13 @@ func TestClient_ProcessNewStream(t *testing.T) {
 				connected = make(chan struct{})
 			)
 			if !test.packet {
-				l, err2 := net.Listen(test.network, addr)
-				if !assert.NoError(t, err2) {
-					assert.FailNow(t, "failed to listen stream")
+				var l net.Listener
+				if test.network == "pipe" {
+					l, err = pipenet.ListenPipe(listenAddr, "", 0600)
+				} else {
+					l, err = net.Listen(test.network, listenAddr)
+				}
+				if !assert.NoError(t, err, "failed to listen") {
 					return
 				}
 
@@ -168,6 +163,11 @@ func TestClient_ProcessNewStream(t *testing.T) {
 						assert.FailNow(t, "failed to accept conn")
 						return
 					}
+
+					err2 = codec.GetCodec(arhatgopb.CODEC_JSON).NewDecoder(conn).Decode(&arhatgopb.Msg{})
+					assert.NoError(t, err2)
+
+					// encode test command
 					enc := test.codec.NewEncoder(conn)
 					assert.NoError(t, enc.Encode(cmd))
 
@@ -175,7 +175,7 @@ func TestClient_ProcessNewStream(t *testing.T) {
 					close(connected)
 				}()
 			} else {
-				p, err2 := net.ListenPacket(test.network, addr)
+				p, err2 := net.ListenPacket(test.network, listenAddr)
 				if !assert.NoError(t, err2) {
 					assert.FailNow(t, "failed to listen packet")
 					return

@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"arhat.dev/arhat-proto/arhatgopb"
+	"arhat.dev/pkg/iohelper"
 	"arhat.dev/pkg/log"
 
 	"arhat.dev/libext/codec"
@@ -48,7 +49,7 @@ func BenchmarkSuite(b *testing.B) {
 	}
 
 	var (
-		protos = []string{"tcp4", "tcp6", "udp4", "udp6"}
+		protos = []string{"tcp4", "tcp6", "udp4", "udp6", "pipe"}
 		codecs = []types.Codec{
 			codec.GetCodec(arhatgopb.CODEC_JSON),
 			codec.GetCodec(arhatgopb.CODEC_PROTOBUF),
@@ -94,25 +95,24 @@ func BenchmarkSuite(b *testing.B) {
 		b.Run(bm.network+suffix+"/"+bm.codec.Type().String(), func(b *testing.B) {
 			b.StopTimer()
 
-			var addr string
-			if strings.HasPrefix(bm.network, "unix") {
-				f, err := ioutil.TempFile(os.TempDir(), "bench-unix-*.sock")
+			port++
+			var (
+				addr string
+				port = strconv.FormatInt(int64(port), 10)
+			)
+			switch {
+			case bm.network == "unix",
+				bm.network == "pipe" && runtime.GOOS != "windows":
+				filename, err := iohelper.TempFilename(os.TempDir(), "bench-unix-*.sock")
 				if err != nil {
 					b.Errorf("failed to create temporary unix socket file: %v", err)
 					return
 				}
-				filename := f.Name()
-				addr = "unix://" + filename
-				_ = f.Close()
-				_ = os.Remove(filename)
-				time.Sleep(5 * time.Second)
-				defer func() {
-					_ = os.Remove(filename)
-				}()
-			} else {
-				port++
-
-				addr = bm.network + "://" + net.JoinHostPort(bm.host, strconv.FormatInt(int64(port), 10))
+				addr = bm.network + "://" + filename
+			case bm.network == "pipe" && runtime.GOOS == "windows":
+				addr = bm.network + "://benchmark-" + port
+			default:
+				addr = bm.network + `://\\.\pipe\benchmark-` + net.JoinHostPort(bm.host, port)
 			}
 
 			var (
@@ -235,9 +235,7 @@ func BenchmarkSuite(b *testing.B) {
 						b.StopTimer()
 						srv.Close()
 					},
-					func(msg *arhatgopb.Msg) {
-
-					}
+					func(msg *arhatgopb.Msg) {}
 			})
 
 			go func() {
