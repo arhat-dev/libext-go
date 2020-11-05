@@ -109,7 +109,14 @@ func NewClient(
 	case "pipe":
 		connector = func() (net.Conn, error) {
 			if runtime.GOOS == "windows" {
-				return pipenet.DialContext(ctx, fmt.Sprintf(`\\%s\pipe\%s`, u.Host, u.Path))
+				host := u.Host
+				path := u.Path
+				if path == "" {
+					host = "."
+					path = u.Host
+				}
+
+				return pipenet.DialContext(ctx, fmt.Sprintf(`\\%s\pipe\%s`, host, path))
 			}
 
 			return pipenet.DialContext(ctx, u.Path)
