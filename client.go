@@ -24,6 +24,7 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"runtime"
 	"strings"
 	"time"
 
@@ -107,6 +108,10 @@ func NewClient(
 		}
 	case "pipe":
 		connector = func() (net.Conn, error) {
+			if runtime.GOOS == "windows" {
+				return pipenet.DialContext(ctx, fmt.Sprintf(`\\%s\pipe\%s`, u.Host, u.Path))
+			}
+
 			return pipenet.DialContext(ctx, u.Path)
 		}
 	default:
