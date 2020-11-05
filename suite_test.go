@@ -112,7 +112,7 @@ func BenchmarkSuite(b *testing.B) {
 			case bm.network == "pipe" && runtime.GOOS == "windows":
 				addr = bm.network + "://benchmark-" + port
 			default:
-				addr = bm.network + `://\\.\pipe\benchmark-` + net.JoinHostPort(bm.host, port)
+				addr = bm.network + `://localhost:` + net.JoinHostPort(bm.host, port)
 			}
 
 			var (

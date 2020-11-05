@@ -23,6 +23,7 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -90,7 +91,14 @@ func NewServer(
 			addr, err = net.ResolveUnixAddr(s, u.Path)
 			createConnMgr = newStreamConnectionManager
 		case "pipe":
-			addr, err = &pipenet.PipeAddr{Path: u.Path}, nil
+			err = nil
+			switch runtime.GOOS {
+			case "windows":
+				// pipe://PipeName
+				addr = &pipenet.PipeAddr{Path: fmt.Sprintf(`\\.\pipe\%s%s`, u.Host, u.Path)}
+			default:
+				addr = &pipenet.PipeAddr{Path: u.Path}
+			}
 			createConnMgr = newStreamConnectionManager
 		default:
 			return nil, fmt.Errorf("unsupported protocol %q", u.Scheme)
