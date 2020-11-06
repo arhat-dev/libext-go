@@ -100,7 +100,7 @@ func TestClient_ProcessNewStream(t *testing.T) {
 			case test.network == "pipe":
 				switch runtime.GOOS {
 				case "windows":
-					listenAddr = "pipe://test-" + test.network
+					listenAddr = `\\.\pipe\test-` + test.network
 				default:
 					listenAddr, err = iohelper.TempFilename(os.TempDir(), "*")
 					if !assert.NoError(t, err) {
