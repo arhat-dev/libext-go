@@ -20,6 +20,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -53,15 +54,20 @@ func TestStreamConnectionManager_ListenAndServe(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name+"/pipe", func(t *testing.T) {
-			pipePath, err := iohelper.TempFilename(os.TempDir(), "*")
+			serverPath, err := iohelper.TempFilename(os.TempDir(), "*")
 			assert.NoError(t, err)
+
+			clientPath := serverPath
 			if runtime.GOOS == "windows" {
-				pipePath = `test-` + test.name
+				serverPath = `\.\\pipe\` + filepath.Base(serverPath)
+				clientPath = filepath.Base(serverPath)
 			}
-			pipeAddr := &pipenet.PipeAddr{Path: pipePath}
-			testConnectionManagerListenAndServe(t, pipeAddr, test.regName, test.codec,
+
+			testConnectionManagerListenAndServe(t, &pipenet.PipeAddr{Path: clientPath}, test.regName, test.codec,
 				func(handleFunc netConnectionHandleFunc) connectionManager {
-					return newStreamConnectionManager(context.TODO(), log.NoOpLogger, pipeAddr, nil, handleFunc)
+					return newStreamConnectionManager(
+						context.TODO(), log.NoOpLogger, &pipenet.PipeAddr{Path: serverPath}, nil, handleFunc,
+					)
 				},
 			)
 		})

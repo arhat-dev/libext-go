@@ -76,14 +76,13 @@ func testConnectionManagerListenAndServe(
 ) {
 	time.Sleep(5 * time.Second)
 
-	connectionValidated := make(chan struct{})
 	cmdCh, msgCh := make(chan *arhatgopb.Cmd), make(chan *arhatgopb.Msg)
 
 	handleFunc := func(_ net.Addr, kind arhatgopb.ExtensionType, name string, codec types.Codec, conn io.ReadWriter) error {
 		assert.EqualValues(t, regName, name)
 		assert.EqualValues(t, codec.Type(), codec.Type())
 
-		close(connectionValidated)
+		close(msgCh)
 		return nil
 	}
 
@@ -106,20 +105,10 @@ func testConnectionManagerListenAndServe(
 		return
 	}
 
-	clientExited := make(chan struct{})
-	go func() {
-		<-connectionValidated
-
-		close(msgCh)
-
-		<-clientExited
-		_ = mgr.Close()
-	}()
-
 	// TODO: find a better way to connect without error
 	time.Sleep(5 * time.Second)
 	err = client.ProcessNewStream(cmdCh, msgCh)
-	close(clientExited)
+	_ = mgr.Close()
 
 	assert.NoError(t, err)
 }
