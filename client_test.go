@@ -19,12 +19,12 @@ package libext
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/iohelper"
@@ -63,7 +63,8 @@ func TestClient_ProcessNewStream(t *testing.T) {
 	}
 
 	var tests []testCase
-	for _, network := range []string{"tcp", "tcp4", "tcp6", "udp", "udp4", "udp6", "unix", "pipe"} {
+	protos := []string{"tcp", "tcp4", "tcp6", "udp", "udp4", "udp6", "unix", "pipe"}
+	for _, network := range protos {
 		isPkt := strings.HasPrefix(network, "udp")
 		for _, c := range []arhatgopb.CodecType{arhatgopb.CODEC_JSON, arhatgopb.CODEC_PROTOBUF} {
 			tests = append(tests, testCase{
@@ -136,9 +137,9 @@ func TestClient_ProcessNewStream(t *testing.T) {
 			}
 
 			var (
-				srvAddr   string
-				netConn   io.Closer
-				connected = make(chan struct{})
+				srvAddr     string
+				connected   = make(chan struct{})
+				clientWrote = make(chan struct{})
 			)
 			if !test.packet {
 				var l net.Listener
@@ -171,8 +172,10 @@ func TestClient_ProcessNewStream(t *testing.T) {
 					enc := test.codec.NewEncoder(conn)
 					assert.NoError(t, enc.Encode(cmd))
 
-					netConn = conn
 					close(connected)
+					<-clientWrote
+					time.Sleep(time.Second)
+					_ = conn.Close()
 				}()
 			} else {
 				p, err2 := net.ListenPacket(test.network, listenAddr)
@@ -203,6 +206,7 @@ func TestClient_ProcessNewStream(t *testing.T) {
 					assert.NoError(t, enc.Encode(cmd))
 
 					close(connected)
+					<-clientWrote
 				}()
 			}
 
@@ -230,6 +234,7 @@ func TestClient_ProcessNewStream(t *testing.T) {
 
 			<-connected
 
+			// receive initial server command
 			recvCmd := <-cmdCh
 			assert.EqualValues(t, cmd, recvCmd)
 
@@ -237,13 +242,13 @@ func TestClient_ProcessNewStream(t *testing.T) {
 
 			close(msgCh)
 
+			time.Sleep(time.Second)
+			close(clientWrote)
+
 			// wait until client stream handler exited
 			<-finished
 
-			if netConn != nil {
-				_ = netConn.Close()
-			}
-
+			println("recv")
 			select {
 			case <-cmdCh:
 			default:
