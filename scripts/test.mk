@@ -13,14 +13,29 @@
 # limitations under the License.
 
 GO_TEST := GOOS=$(shell go env GOHOSTOS) GOARCH=$(shell go env GOHOSTARCH) CGO_ENABLED=1 \
-	go test -timeout 30m -mod=readonly -v -failfast -covermode=atomic -race -cpu 1,2,4
+	go test -timeout 10m -mod=readonly -v -failfast -covermode=atomic -race -cpu 2,4
 
 GO_BENCH := GOOS=$(shell go env GOHOSTOS) GOARCH=$(shell go env GOHOSTARCH) CGO_ENABLED=1 \
 	go test -timeout 30m -mod=readonly -bench '^Benchmark.*' -benchmem  -covermode=atomic \
 	-benchtime=100000x -run '^Benchmark.*' -v
 
-test.unit:
-	${GO_TEST} -coverprofile=coverage.txt ./...
+test.unit.codec:
+	${GO_TEST} -coverprofile=coverage.codec.txt ./codec
+
+test.unit.extperipheral:
+	${GO_TEST} -coverprofile=coverage.extperipheral.txt ./extperipheral
+
+test.unit.server:
+	${GO_TEST} -coverprofile=coverage.server.txt ./server
+
+test.unit.libext:
+	${GO_TEST} -coverprofile=coverage.libext.txt .
+
+test.unit: \
+	test.unit.codec \
+	test.unit.extperipheral \
+	test.unit.server \
+	test.unit.libext
 
 test.benchmark:
 	${GO_BENCH} -coverprofile=coverage.bench.txt ./
