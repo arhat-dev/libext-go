@@ -59,7 +59,7 @@ func TestStreamConnectionManager_ListenAndServe(t *testing.T) {
 
 			clientPath := serverPath
 			if runtime.GOOS == "windows" {
-				serverPath = `\.\\pipe\` + filepath.Base(serverPath)
+				serverPath = `\\.\pipe\` + filepath.Base(serverPath)
 				clientPath = filepath.Base(serverPath)
 			}
 
