@@ -248,7 +248,6 @@ func TestClient_ProcessNewStream(t *testing.T) {
 			// wait until client stream handler exited
 			<-finished
 
-			println("recv")
 			select {
 			case <-cmdCh:
 			default:
