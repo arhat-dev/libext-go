@@ -156,7 +156,11 @@ func TestClient_ProcessNewStream(t *testing.T) {
 					_ = l.Close()
 				}()
 
-				srvAddr = l.Addr().String()
+				if test.network == "pipe" && runtime.GOOS == "windows" {
+					srvAddr = strings.TrimPrefix(listenAddr, `\\.\pipe\`)
+				} else {
+					srvAddr = l.Addr().String()
+				}
 
 				go func() {
 					conn, err2 := l.Accept()
