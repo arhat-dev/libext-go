@@ -1,5 +1,7 @@
-arhat.dev/arhat-proto v0.3.1 h1:7KzSBpPWeFqRKPnEKOY6t6xhNXpWwEQjNidoPt+np7s=
-arhat.dev/arhat-proto v0.3.1/go.mod h1:Pd9J0IeEjj8dCxXvMDn+q2f8C04/yS4CUbpOO5jfb4o=
+arhat.dev/aranya-proto v0.2.3 h1:yBJi+EhRZl+xRho/kv2W1V8VvOeX7ZiVLburjJ9oVPw=
+arhat.dev/aranya-proto v0.2.3/go.mod h1:mEX3WnwrKm+M/gQgbBkfrRZ1nu1ME0vaXPk14UZPXmk=
+arhat.dev/arhat-proto v0.4.2 h1:eUgT882cJwlONzEe7TytYMBQ+KE4CxA0pwlqTQJZypQ=
+arhat.dev/arhat-proto v0.4.2/go.mod h1:Pd9J0IeEjj8dCxXvMDn+q2f8C04/yS4CUbpOO5jfb4o=
 arhat.dev/pkg v0.2.11 h1:BhV7PGuotvUgXilKIaupItdycTaKfoNeU5XzsuAjT00=
 arhat.dev/pkg v0.2.11/go.mod h1:jH1XU7uTzKF4m7U7BLL13RpNASoGT4cC8Ao3LLorG7k=
 bitbucket.org/bertimus9/systemstat v0.0.0-20180207000608-0eeff89b0690/go.mod h1:Ulb78X89vxKYgdL24HMTiXYHlyHEvruOj1ZPlqeNEZM=
@@ -1086,6 +1088,7 @@ google.golang.org/grpc v1.31.0/go.mod h1:N36X2cJ7JwdamYAgDz+s+rVMFjt3numwzf/HckM
 google.golang.org/grpc v1.31.1/go.mod h1:N36X2cJ7JwdamYAgDz+s+rVMFjt3numwzf/HckM8pak=
 google.golang.org/grpc v1.32.0/go.mod h1:N36X2cJ7JwdamYAgDz+s+rVMFjt3numwzf/HckM8pak=
 google.golang.org/grpc v1.33.1/go.mod h1:fr5YgcSWrqhRRxogOsw7RzIpsmvOZ6IcH4kBYTpR3n0=
+google.golang.org/grpc v1.33.2/go.mod h1:JMHMWHQWaTccqQQlmk3MJZS+GWXOdAesneDmEnv2fbc=
 google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
 google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=
 google.golang.org/protobuf v0.0.0-20200228230310-ab0ca4ff8a60/go.mod h1:cfTl7dwQJ+fmap5saPgwCLgHXTUD7jkjRqWcaiX5VyM=

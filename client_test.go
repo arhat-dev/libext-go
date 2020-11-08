@@ -50,7 +50,10 @@ type benchmarkPeripheral struct {
 }
 
 func (t *benchmarkPeripheral) Connect(
-	target string, params map[string]string, tlsConfig *arhatgopb.TLSConfig,
+	ctx context.Context,
+	target string,
+	params map[string]string,
+	tlsConfig *arhatgopb.TLSConfig,
 ) (extperipheral.Peripheral, error) {
 	return nil, nil
 }

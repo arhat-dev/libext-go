@@ -17,6 +17,7 @@ limitations under the License.
 package extperipheral
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -31,22 +32,31 @@ import (
 type testPeripheral struct {
 }
 
-func (p *testPeripheral) Operate(params map[string]string, data []byte) ([][]byte, error) {
+func (p *testPeripheral) Operate(
+	ctx context.Context, params map[string]string, data []byte,
+) ([][]byte, error) {
 	return [][]byte{[]byte("test")}, nil
 }
 
-func (p *testPeripheral) CollectMetrics(params map[string]string) ([]*arhatgopb.PeripheralMetricsMsg_Value, error) {
+func (p *testPeripheral) CollectMetrics(
+	ctx context.Context, params map[string]string,
+) ([]*arhatgopb.PeripheralMetricsMsg_Value, error) {
 	return []*arhatgopb.PeripheralMetricsMsg_Value{
 		{Value: 1, Timestamp: time.Unix(0, 0).UnixNano()},
 	}, nil
 }
 
-func (p *testPeripheral) Close() {}
+func (p *testPeripheral) Close(ctx context.Context) {}
 
 type testPeripheralConnector struct {
 }
 
-func (p *testPeripheralConnector) Connect(target string, params map[string]string, tlsConfig *arhatgopb.TLSConfig) (Peripheral, error) {
+func (p *testPeripheralConnector) Connect(
+	ctx context.Context,
+	target string,
+	params map[string]string,
+	tlsConfig *arhatgopb.TLSConfig,
+) (Peripheral, error) {
 	return &testPeripheral{}, nil
 }
 
@@ -75,7 +85,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 				})
 				assert.NoError(t, err)
 
-				msg, err := h.HandleCmd(1, arhatgopb.CMD_PERIPHERAL_CONNECT, connectCmdBytes)
+				msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_CONNECT, connectCmdBytes)
 				assert.NoError(t, err)
 				assert.IsType(t, &arhatgopb.DoneMsg{}, msg)
 			}
@@ -87,7 +97,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 				})
 				assert.NoError(t, err)
 
-				msg, err := h.HandleCmd(1, arhatgopb.CMD_PERIPHERAL_OPERATE, operateCmdBytes)
+				msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_OPERATE, operateCmdBytes)
 				assert.NoError(t, err)
 				assert.IsType(t, &arhatgopb.PeripheralOperationResultMsg{}, msg)
 			}
@@ -98,7 +108,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 				})
 				assert.NoError(t, err)
 
-				msg, err := h.HandleCmd(1, arhatgopb.CMD_PERIPHERAL_COLLECT_METRICS, metricCmdBytes)
+				msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_COLLECT_METRICS, metricCmdBytes)
 				assert.NoError(t, err)
 				assert.IsType(t, &arhatgopb.PeripheralMetricsMsg{}, msg)
 			}
@@ -107,7 +117,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 				closeCmdBytes, err := test.codec.Marshal(&arhatgopb.PeripheralCloseCmd{})
 				assert.NoError(t, err)
 
-				msg, err := h.HandleCmd(1, arhatgopb.CMD_PERIPHERAL_CLOSE, closeCmdBytes)
+				msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_CLOSE, closeCmdBytes)
 				assert.NoError(t, err)
 				assert.IsType(t, &arhatgopb.DoneMsg{}, msg)
 			}
@@ -118,7 +128,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 				})
 				assert.NoError(t, err)
 
-				_, err = h.HandleCmd(1, arhatgopb.CMD_PERIPHERAL_OPERATE, invalidOperateCmdBytes)
+				_, err = h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_OPERATE, invalidOperateCmdBytes)
 				assert.Error(t, err)
 			}
 		})

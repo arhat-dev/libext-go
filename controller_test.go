@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	"arhat.dev/libext/types"
+
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +31,9 @@ import (
 
 type testHandler struct{}
 
-func (h *testHandler) HandleCmd(id uint64, kind arhatgopb.CmdType, payload []byte) (interface{}, error) {
+func (h *testHandler) SetMsgSendFunc(sendFunc types.HandlerMsgSendFunc) {}
+func (h *testHandler) SendMsg(msg *arhatgopb.Msg) error                 { return nil }
+func (h *testHandler) HandleCmd(_ context.Context, _, _ uint64, _ arhatgopb.CmdType, _ []byte) (interface{}, error) {
 	return &arhatgopb.DoneMsg{}, nil
 }
 

@@ -74,21 +74,22 @@ func ExampleClient() {
 
 type examplePeripheral struct{}
 
-func (d *examplePeripheral) Operate(params map[string]string, data []byte) ([][]byte, error) {
+func (d *examplePeripheral) Operate(ctx context.Context, params map[string]string, data []byte) ([][]byte, error) {
 	return [][]byte{[]byte("ok")}, nil
 }
 
-func (d *examplePeripheral) CollectMetrics(params map[string]string) ([]*arhatgopb.PeripheralMetricsMsg_Value, error) {
+func (d *examplePeripheral) CollectMetrics(ctx context.Context, params map[string]string) ([]*arhatgopb.PeripheralMetricsMsg_Value, error) {
 	return []*arhatgopb.PeripheralMetricsMsg_Value{
 		{Value: 1.1, Timestamp: time.Now().UnixNano()},
 	}, nil
 }
 
-func (d *examplePeripheral) Close() {}
+func (d *examplePeripheral) Close(ctx context.Context) {}
 
 type examplePeripheralConnector struct{}
 
 func (c *examplePeripheralConnector) Connect(
+	ctx context.Context,
 	target string, params map[string]string, tlsConfig *arhatgopb.TLSConfig,
 ) (extperipheral.Peripheral, error) {
 	return &examplePeripheral{}, nil
