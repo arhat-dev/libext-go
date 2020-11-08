@@ -78,6 +78,7 @@ func TestExtensionManager_handleStream(t *testing.T) {
 			respWrote := make(chan struct{})
 			clientExited := make(chan struct{})
 			oobMsgWrote := make(chan struct{})
+			serverSent := make(chan struct{})
 			clientConn, srvConn := net.Pipe()
 			handleFunc := func(extensionName string) (ExtensionHandleFunc, OutOfBandMsgHandleFunc) {
 				return func(c *ExtensionContext) {
@@ -92,6 +93,8 @@ func TestExtensionManager_handleStream(t *testing.T) {
 							close(respWrote)
 						}()
 						_, err2 := c.SendCmd(cmd)
+						close(serverSent)
+
 						assert.NoError(t, err2)
 
 						<-respWrote
@@ -121,6 +124,8 @@ func TestExtensionManager_handleStream(t *testing.T) {
 
 					<-respWrote
 					<-oobMsgWrote
+
+					<-serverSent
 					_ = clientConn.Close()
 					close(clientExited)
 				}()
