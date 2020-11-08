@@ -32,15 +32,14 @@ import (
 
 type cmdHandleFunc func(ctx context.Context, sid uint64, payload []byte) (*runtimepb.Packet, error)
 
-func NewHandler(logger log.Interface, unmarshal types.UnmarshalFunc, impl RuntimeEngine) types.Handler {
+func NewHandler(logger log.Interface, impl RuntimeEngine) types.Handler {
 	mu := new(sync.RWMutex)
 
 	h := &Handler{
 		BaseHandler: util.NewBaseHandler(mu),
-		logger:      logger,
 
-		unmarshal: unmarshal,
-		impl:      impl,
+		logger: logger,
+		impl:   impl,
 
 		funcMap: nil,
 
@@ -74,9 +73,7 @@ type Handler struct {
 	*util.BaseHandler
 
 	logger log.Interface
-
-	unmarshal types.UnmarshalFunc
-	impl      RuntimeEngine
+	impl   RuntimeEngine
 
 	funcMap map[runtimepb.PacketType]cmdHandleFunc
 

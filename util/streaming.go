@@ -47,6 +47,8 @@ func (m *StreamManager) Add(sid uint64, create func() (io.WriteCloser, types.Res
 	m.sessions[sid] = &stream{
 		_w:  w,
 		_rF: rF,
+
+		_seqQ: queue.NewSeqQueue(),
 	}
 
 	return nil
@@ -86,7 +88,7 @@ func (m *StreamManager) Resize(sid uint64, cols, rows uint32) {
 }
 
 type stream struct {
-	_seqQ queue.SeqQueue
+	_seqQ *queue.SeqQueue
 
 	_w  io.WriteCloser
 	_rF types.ResizeHandleFunc

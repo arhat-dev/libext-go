@@ -181,7 +181,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 		test := te
 		t.Run(test.name, func(t *testing.T) {
 
-			h := NewHandler(log.NoOpLogger, test.codec.Unmarshal, &testRuntime{})
+			h := NewHandler(log.NoOpLogger, &testRuntime{})
 
 			{
 				// invalid command
@@ -280,7 +280,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 			for _, ca := range testCases {
 				c := ca
 				t.Run(c.kind.String(), func(t *testing.T) {
-					h := NewHandler(log.NoOpLogger, test.codec.Unmarshal, &testRuntime{})
+					h := NewHandler(log.NoOpLogger, &testRuntime{})
 
 					resultCh := make(chan []byte)
 
