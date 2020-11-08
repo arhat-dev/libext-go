@@ -6,11 +6,9 @@ import (
 
 	"arhat.dev/aranya-proto/aranyagopb"
 	"arhat.dev/aranya-proto/aranyagopb/runtimepb"
+
+	"arhat.dev/libext/types"
 )
-
-type ResizeHandleFunc func(cols, rows uint32)
-
-func noopHandleResize(cols, rows uint32) {}
 
 type RuntimeEngine interface {
 	// Name of the runtime engine
@@ -46,7 +44,7 @@ type RuntimeEngine interface {
 		command []string,
 		tty bool,
 		errCh chan<- *aranyagopb.ErrorMsg,
-	) (doResize ResizeHandleFunc, err error)
+	) (doResize types.ResizeHandleFunc, err error)
 
 	// Attach a running container's stdin/stdout/stderr
 	Attach(
@@ -55,7 +53,7 @@ type RuntimeEngine interface {
 		stdin io.Reader,
 		stdout, stderr io.Writer,
 		errCh chan<- *aranyagopb.ErrorMsg,
-	) (doResize ResizeHandleFunc, err error)
+	) (doResize types.ResizeHandleFunc, err error)
 
 	// Logs retrieve
 	Logs(
@@ -87,7 +85,7 @@ type RuntimeEngine interface {
 	DeletePod(ctx context.Context, options *runtimepb.PodDeleteCmd) (*runtimepb.PodStatusMsg, error)
 
 	// ListPods show (all) pods we are managing
-	ListPods(ctx context.Context, options *runtimepb.PodListCmd) ([]*runtimepb.PodStatusMsg, error)
+	ListPods(ctx context.Context, options *runtimepb.PodListCmd) (*runtimepb.PodStatusListMsg, error)
 
 	/*
 
@@ -96,11 +94,11 @@ type RuntimeEngine interface {
 	*/
 
 	// EnsureImages ensure container images
-	EnsureImages(ctx context.Context, options *runtimepb.ImageEnsureCmd) ([]*runtimepb.ImageStatusMsg, error)
+	EnsureImages(ctx context.Context, options *runtimepb.ImageEnsureCmd) (*runtimepb.ImageStatusListMsg, error)
 
 	// DeleteImages deletes images with specified references
-	DeleteImages(ctx context.Context, options *runtimepb.ImageDeleteCmd) ([]*runtimepb.ImageStatusMsg, error)
+	DeleteImages(ctx context.Context, options *runtimepb.ImageDeleteCmd) (*runtimepb.ImageStatusListMsg, error)
 
 	// DeleteImages lists images with specified references or all images
-	ListImages(ctx context.Context, options *runtimepb.ImageListCmd) ([]*runtimepb.ImageStatusMsg, error)
+	ListImages(ctx context.Context, options *runtimepb.ImageListCmd) (*runtimepb.ImageStatusListMsg, error)
 }

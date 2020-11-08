@@ -25,6 +25,9 @@ test.unit.codec:
 test.unit.extperipheral:
 	${GO_TEST} -coverprofile=coverage.extperipheral.txt ./extperipheral
 
+test.unit.extruntime:
+	${GO_TEST} -coverprofile=coverage.extruntime.txt ./extruntime
+
 test.unit.server:
 	${GO_TEST} -coverprofile=coverage.server.txt ./server
 
@@ -34,6 +37,7 @@ test.unit.libext:
 test.unit: \
 	test.unit.codec \
 	test.unit.extperipheral \
+	test.unit.extruntime \
 	test.unit.server \
 	test.unit.libext
 

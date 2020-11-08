@@ -31,8 +31,8 @@ import (
 
 type testHandler struct{}
 
-func (h *testHandler) SetMsgSendFunc(sendFunc types.HandlerMsgSendFunc) {}
-func (h *testHandler) SendMsg(msg *arhatgopb.Msg) error                 { return nil }
+func (h *testHandler) SetMsgSendFunc(sendFunc types.MsgSendFunc) {}
+func (h *testHandler) SendMsg(msg *arhatgopb.Msg) error          { return nil }
 func (h *testHandler) HandleCmd(_ context.Context, _, _ uint64, _ arhatgopb.CmdType, _ []byte) (interface{}, error) {
 	return &arhatgopb.DoneMsg{}, nil
 }

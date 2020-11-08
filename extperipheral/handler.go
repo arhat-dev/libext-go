@@ -21,14 +21,12 @@ import (
 	"fmt"
 	"sync"
 
-	"arhat.dev/pkg/wellknownerrors"
-
-	"arhat.dev/libext/util"
-
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
+	"arhat.dev/pkg/wellknownerrors"
 
 	"arhat.dev/libext/types"
+	"arhat.dev/libext/util"
 )
 
 type cmdHandleFunc func(ctx context.Context, p Peripheral, payload []byte) (interface{}, error)

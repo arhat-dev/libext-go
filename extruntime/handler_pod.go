@@ -6,7 +6,7 @@ import (
 	"arhat.dev/aranya-proto/aranyagopb/runtimepb"
 )
 
-func (h *Handler) handlePodList(ctx context.Context, sid uint64, payload []byte) (*runtimepb.Packet, error) {
+func (h *Handler) handlePodList(ctx context.Context, _ uint64, payload []byte) (*runtimepb.Packet, error) {
 	opts := new(runtimepb.PodListCmd)
 	err := opts.Unmarshal(payload)
 	if err != nil {
@@ -18,7 +18,7 @@ func (h *Handler) handlePodList(ctx context.Context, sid uint64, payload []byte)
 		return nil, err
 	}
 
-	data, err := (&runtimepb.PodStatusListMsg{Pods: msg}).Marshal()
+	data, err := msg.Marshal()
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func (h *Handler) handlePodList(ctx context.Context, sid uint64, payload []byte)
 	}, nil
 }
 
-func (h *Handler) handlePodEnsure(ctx context.Context, sid uint64, payload []byte) (*runtimepb.Packet, error) {
+func (h *Handler) handlePodEnsure(ctx context.Context, _ uint64, payload []byte) (*runtimepb.Packet, error) {
 	opts := new(runtimepb.PodEnsureCmd)
 	err := opts.Unmarshal(payload)
 	if err != nil {

@@ -10,6 +10,8 @@ import (
 	"arhat.dev/aranya-proto/aranyagopb/runtimepb"
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/iohelper"
+
+	"arhat.dev/libext/types"
 )
 
 func (h *Handler) handleExec(ctx context.Context, sid uint64, payload []byte) (*runtimepb.Packet, error) {
@@ -26,7 +28,7 @@ func (h *Handler) handleExec(ctx context.Context, sid uint64, payload []byte) (*
 		func(stdout, stderr io.WriteCloser) *aranyagopb.ErrorMsg {
 			errCh := make(chan *aranyagopb.ErrorMsg)
 			if opts.Stdin {
-				err = h.streams.Add(sid, func() (_ io.WriteCloser, _ ResizeHandleFunc, err error) {
+				err = h.streams.Add(sid, func() (_ io.WriteCloser, _ types.ResizeHandleFunc, err error) {
 					var (
 						pr io.ReadCloser
 						pw io.WriteCloser
@@ -95,7 +97,7 @@ func (h *Handler) handleAttach(ctx context.Context, sid uint64, payload []byte) 
 			errCh := make(chan *aranyagopb.ErrorMsg)
 
 			if opts.Stdin {
-				err = h.streams.Add(sid, func() (_ io.WriteCloser, _ ResizeHandleFunc, err error) {
+				err = h.streams.Add(sid, func() (_ io.WriteCloser, _ types.ResizeHandleFunc, err error) {
 					var (
 						stdin io.ReadCloser
 						pw    io.WriteCloser
@@ -225,7 +227,7 @@ func (h *Handler) handlePortForward(ctx context.Context, sid uint64, payload []b
 		h.streams.Del(sid)
 	}()
 
-	err = h.streams.Add(sid, func() (io.WriteCloser, ResizeHandleFunc, error) {
+	err = h.streams.Add(sid, func() (io.WriteCloser, types.ResizeHandleFunc, error) {
 		err = h.impl.PortForward(ctx, opts.PodUid, opts.Protocol, opts.Port, upstream, downstream)
 		if err != nil {
 			return nil, nil, err

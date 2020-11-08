@@ -21,12 +21,12 @@ import (
 	"testing"
 	"time"
 
-	"arhat.dev/libext/codec"
-	"arhat.dev/libext/types"
-
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
 	"github.com/stretchr/testify/assert"
+
+	"arhat.dev/libext/codec"
+	"arhat.dev/libext/types"
 )
 
 type testPeripheral struct {

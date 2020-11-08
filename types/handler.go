@@ -22,13 +22,16 @@ import (
 	"arhat.dev/arhat-proto/arhatgopb"
 )
 
-type HandlerMsgSendFunc func(msg *arhatgopb.Msg) error
+type (
+	ResizeHandleFunc func(cols, rows uint32)
+	MsgSendFunc      func(msg *arhatgopb.Msg) error
+)
 
 // Handler for controller
 type Handler interface {
 	// SetMsgSendFunc is called by controller when new connection established, handler
 	// should use the latest message send func for SendMsg function call
-	SetMsgSendFunc(sendMsg HandlerMsgSendFunc)
+	SetMsgSendFunc(sendMsg MsgSendFunc)
 
 	// SendMsg send out of band message to the extension hub
 	SendMsg(msg *arhatgopb.Msg) error

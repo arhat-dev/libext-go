@@ -19,12 +19,12 @@ func NewBaseHandler(mu *sync.RWMutex) *BaseHandler {
 }
 
 type BaseHandler struct {
-	msgSendFunc types.HandlerMsgSendFunc
+	msgSendFunc types.MsgSendFunc
 
 	mu *sync.RWMutex
 }
 
-func (h *BaseHandler) SetMsgSendFunc(sendMsg types.HandlerMsgSendFunc) {
+func (h *BaseHandler) SetMsgSendFunc(sendMsg types.MsgSendFunc) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 

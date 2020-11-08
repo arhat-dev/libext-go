@@ -18,7 +18,7 @@ func (h *Handler) handleImageList(ctx context.Context, sid uint64, payload []byt
 		return nil, err
 	}
 
-	data, err := (&runtimepb.ImageStatusListMsg{Images: msg}).Marshal()
+	data, err := msg.Marshal()
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (h *Handler) handleImageEnsure(ctx context.Context, sid uint64, payload []b
 		return nil, err
 	}
 
-	data, err := (&runtimepb.ImageStatusListMsg{Images: msg}).Marshal()
+	data, err := msg.Marshal()
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (h *Handler) handleImageDelete(ctx context.Context, sid uint64, payload []b
 		return nil, err
 	}
 
-	data, err := (&runtimepb.ImageStatusListMsg{Images: msg}).Marshal()
+	data, err := msg.Marshal()
 	if err != nil {
 		return nil, err
 	}

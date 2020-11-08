@@ -1,4 +1,4 @@
-package extruntime
+package util
 
 import (
 	"io"
@@ -8,7 +8,11 @@ import (
 
 	"arhat.dev/pkg/queue"
 	"arhat.dev/pkg/wellknownerrors"
+
+	"arhat.dev/libext/types"
 )
+
+func noopHandleResize(cols, rows uint32) {}
 
 func NewStreamManager() *StreamManager {
 	return &StreamManager{
@@ -23,7 +27,7 @@ type StreamManager struct {
 	mu *sync.RWMutex
 }
 
-func (m *StreamManager) Add(sid uint64, create func() (io.WriteCloser, ResizeHandleFunc, error)) error {
+func (m *StreamManager) Add(sid uint64, create func() (io.WriteCloser, types.ResizeHandleFunc, error)) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -85,7 +89,7 @@ type stream struct {
 	_seqQ queue.SeqQueue
 
 	_w  io.WriteCloser
-	_rF ResizeHandleFunc
+	_rF types.ResizeHandleFunc
 
 	working uint32
 }

@@ -44,7 +44,7 @@ func NewHandler(logger log.Interface, unmarshal types.UnmarshalFunc, impl Runtim
 
 		funcMap: nil,
 
-		streams: NewStreamManager(),
+		streams: util.NewStreamManager(),
 
 		mu: mu,
 	}
@@ -80,7 +80,7 @@ type Handler struct {
 
 	funcMap map[runtimepb.PacketType]cmdHandleFunc
 
-	streams *StreamManager
+	streams *util.StreamManager
 
 	mu *sync.RWMutex
 }
