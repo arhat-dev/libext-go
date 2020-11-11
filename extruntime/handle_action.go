@@ -46,25 +46,13 @@ func (h *Handler) handleExec(ctx context.Context, sid uint64, payload []byte) (*
 			var errCh <-chan *aranyagopb.ErrorMsg
 			if opts.Stdin {
 				err = h.streams.Add(sid, func() (_ io.WriteCloser, resizeFunc types.ResizeHandleFunc, err error) {
-					var (
-						pr io.ReadCloser
-						pw io.WriteCloser
-					)
-
-					if opts.Stdin {
-						pr, pw = iohelper.Pipe()
-						defer func() {
-							if err != nil {
-								_ = pw.Close()
-								_ = pr.Close()
-							}
-						}()
-					}
-
+					pr, pw := iohelper.Pipe()
 					resizeFunc, errCh, err = h.impl.Exec(
 						ctx, opts.PodUid, opts.Container, pr, stdout, stderr, opts.Command, opts.Tty,
 					)
 					if err != nil {
+						_ = pw.Close()
+						_ = pr.Close()
 						return nil, nil, err
 					}
 
@@ -106,25 +94,13 @@ func (h *Handler) handleAttach(ctx context.Context, sid uint64, payload []byte) 
 
 			if opts.Stdin {
 				err = h.streams.Add(sid, func() (_ io.WriteCloser, resizeFunc types.ResizeHandleFunc, err error) {
-					var (
-						stdin io.ReadCloser
-						pw    io.WriteCloser
-					)
-
-					if opts.Stdin {
-						stdin, pw = iohelper.Pipe()
-						defer func() {
-							if err != nil {
-								_ = pw.Close()
-								_ = stdin.Close()
-							}
-						}()
-					}
-
+					stdin, pw := iohelper.Pipe()
 					resizeFunc, errCh, err = h.impl.Attach(
 						ctx, opts.PodUid, opts.Container, stdin, stdout, stderr,
 					)
 					if err != nil {
+						_ = pw.Close()
+						_ = stdin.Close()
 						return nil, nil, err
 					}
 
@@ -257,6 +233,10 @@ func (h *Handler) handlePortForward(ctx context.Context, sid uint64, payload []b
 			return nil, nil, err
 		}
 
+		if downstream == nil || closeWrite == nil || errCh == nil {
+			return nil, nil, fmt.Errorf("bad port-forward implementation, missing required return values")
+		}
+
 		return &flexWriteCloser{
 			writeFunc: pw.Write,
 			closeFunc: func() error {
@@ -295,7 +275,8 @@ func (h *Handler) handlePortForward(ctx context.Context, sid uint64, payload []b
 	// pipe received data to extension hub
 	h.uploadDataOutput(
 		ctx,
-		sid, downstream,
+		sid,
+		downstream,
 		arhatgopb.MSG_DATA_OUTPUT,
 		20*time.Millisecond,
 		&seq,
