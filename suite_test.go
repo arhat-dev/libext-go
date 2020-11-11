@@ -223,7 +223,7 @@ func BenchmarkSuite(b *testing.B) {
 								return
 							}
 
-							msg, err2 := c.SendCmd(cmd)
+							msg, err2 := c.SendCmd(cmd, true)
 							if err2 != nil || msg.Kind != arhatgopb.MSG_DONE {
 								if msg != nil {
 									println(string(msg.Payload))

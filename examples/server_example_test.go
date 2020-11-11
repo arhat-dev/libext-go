@@ -102,7 +102,7 @@ func (s *exampleServer) Start() {
 			continue
 		}
 
-		resp, err := ec.SendCmd(cmd)
+		resp, err := ec.SendCmd(cmd, true)
 		if err != nil {
 			logger.I("failed to send peripheral connect cmd", log.Error(err))
 			continue

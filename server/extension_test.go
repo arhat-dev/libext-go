@@ -92,7 +92,7 @@ func TestExtensionManager_handleStream(t *testing.T) {
 
 							close(respWrote)
 						}()
-						_, err2 := c.SendCmd(cmd)
+						_, err2 := c.SendCmd(cmd, true)
 						close(serverSent)
 
 						assert.NoError(t, err2)
