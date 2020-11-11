@@ -21,6 +21,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"strings"
 	"testing"
 
 	"arhat.dev/aranya-proto/aranyagopb"
@@ -64,12 +66,15 @@ func (r *testRuntime) Exec(
 	stdout, stderr io.Writer,
 	command []string,
 	tty bool,
-	errCh chan<- *aranyagopb.ErrorMsg,
-) (doResize types.ResizeHandleFunc, err error) {
+) (
+	doResize types.ResizeHandleFunc,
+	_ <-chan *aranyagopb.ErrorMsg,
+	err error,
+) {
 	if podUID != testPodUID {
-		return nil, fmt.Errorf("invalid pod id for exec")
+		return nil, nil, fmt.Errorf("invalid pod id for exec")
 	}
-	return nil, nil
+	return nil, nil, nil
 }
 
 func (r *testRuntime) Attach(
@@ -77,12 +82,15 @@ func (r *testRuntime) Attach(
 	podUID, container string,
 	stdin io.Reader,
 	stdout, stderr io.Writer,
-	errCh chan<- *aranyagopb.ErrorMsg,
-) (doResize types.ResizeHandleFunc, err error) {
+) (
+	doResize types.ResizeHandleFunc,
+	_ <-chan *aranyagopb.ErrorMsg,
+	err error,
+) {
 	if podUID != testPodUID {
-		return nil, fmt.Errorf("invalid pod id for attach")
+		return nil, nil, fmt.Errorf("invalid pod id for attach")
 	}
-	return nil, nil
+	return nil, nil, nil
 }
 
 func (r *testRuntime) Logs(
@@ -102,12 +110,16 @@ func (r *testRuntime) PortForward(
 	protocol string,
 	port int32,
 	upstream io.Reader,
-	downstream io.Writer,
-) error {
+) (
+	downstream io.ReadCloser,
+	closeWriter func(),
+	readErrCh <-chan error,
+	err error,
+) {
 	if podUID != testPodUID {
-		return fmt.Errorf("invalid pod id for port-forward")
+		return nil, nil, nil, fmt.Errorf("invalid pod id for port-forward")
 	}
-	return nil
+	return ioutil.NopCloser(strings.NewReader("test")), nil, nil, nil
 }
 
 var (
@@ -181,7 +193,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 		test := te
 		t.Run(test.name, func(t *testing.T) {
 
-			h := NewHandler(log.NoOpLogger, &testRuntime{})
+			h := NewHandler(log.NoOpLogger, 4096, &testRuntime{})
 
 			{
 				// invalid command
@@ -280,7 +292,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 			for _, ca := range testCases {
 				c := ca
 				t.Run(c.kind.String(), func(t *testing.T) {
-					h := NewHandler(log.NoOpLogger, &testRuntime{})
+					h := NewHandler(log.NoOpLogger, 4096, &testRuntime{})
 
 					resultCh := make(chan []byte)
 

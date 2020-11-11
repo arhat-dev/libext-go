@@ -19,6 +19,7 @@ package extruntime
 import (
 	"context"
 	"io"
+	"net"
 	"testing"
 	"time"
 
@@ -54,23 +55,28 @@ func (r *testStreamRuntime) Exec(
 	stdout, stderr io.Writer,
 	command []string,
 	tty bool,
-	errCh chan<- *aranyagopb.ErrorMsg,
-) (doResize types.ResizeHandleFunc, err error) {
+) (
+	doResize types.ResizeHandleFunc,
+	_ <-chan *aranyagopb.ErrorMsg,
+	err error,
+) {
 	if !assert.NotNil(r.t, stdin, "no stdin provided") {
-		return nil, wellknownerrors.ErrNotSupported
+		return nil, nil, wellknownerrors.ErrNotSupported
 	}
 
 	if !assert.NotNil(r.t, stdout, "no stdout provided") {
-		return nil, wellknownerrors.ErrNotSupported
+		return nil, nil, wellknownerrors.ErrNotSupported
 	}
 
 	if !assert.NotNil(r.t, stderr, "no stderr provided") {
-		return nil, wellknownerrors.ErrNotSupported
+		return nil, nil, wellknownerrors.ErrNotSupported
 	}
 
 	assert.EqualValues(r.t, []string{"test"}, command)
 
+	errCh := make(chan *aranyagopb.ErrorMsg)
 	go func() {
+		defer close(errCh)
 		buf := make([]byte, len(testStreamData))
 		_, err = stdin.Read(buf)
 		assert.NoError(r.t, err, "failed to read from stdin")
@@ -83,7 +89,7 @@ func (r *testStreamRuntime) Exec(
 		assert.NoError(r.t, err, "failed to write stdout data")
 	}()
 
-	return nil, nil
+	return nil, errCh, nil
 }
 
 func (r *testStreamRuntime) Attach(
@@ -91,21 +97,27 @@ func (r *testStreamRuntime) Attach(
 	podUID, container string,
 	stdin io.Reader,
 	stdout, stderr io.Writer,
-	errCh chan<- *aranyagopb.ErrorMsg,
-) (doResize types.ResizeHandleFunc, err error) {
+) (
+	doResize types.ResizeHandleFunc,
+	_ <-chan *aranyagopb.ErrorMsg,
+	err error,
+) {
 	if !assert.NotNil(r.t, stdin, "no stdin provided") {
-		return nil, wellknownerrors.ErrNotSupported
+		return nil, nil, wellknownerrors.ErrNotSupported
 	}
 
 	if !assert.NotNil(r.t, stdout, "no stdout provided") {
-		return nil, wellknownerrors.ErrNotSupported
+		return nil, nil, wellknownerrors.ErrNotSupported
 	}
 
 	if !assert.NotNil(r.t, stderr, "no stderr provided") {
-		return nil, wellknownerrors.ErrNotSupported
+		return nil, nil, wellknownerrors.ErrNotSupported
 	}
 
+	errCh := make(chan *aranyagopb.ErrorMsg)
 	go func() {
+		defer close(errCh)
+
 		buf := make([]byte, len(testStreamData))
 		_, err = stdin.Read(buf)
 		assert.NoError(r.t, err, "failed to read from stdin")
@@ -118,7 +130,7 @@ func (r *testStreamRuntime) Attach(
 		assert.NoError(r.t, err, "failed to write stdout data")
 	}()
 
-	return nil, nil
+	return nil, errCh, nil
 }
 
 func (r *testStreamRuntime) Logs(
@@ -149,29 +161,34 @@ func (r *testStreamRuntime) PortForward(
 	protocol string,
 	port int32,
 	upstream io.Reader,
-	downstream io.Writer,
-) error {
+) (
+	downstream io.ReadCloser,
+	closeWriter func(),
+	readErrCh <-chan error,
+	err error,
+) {
 	if !assert.NotNil(r.t, upstream, "no upstream provided") {
-		return wellknownerrors.ErrNotSupported
-	}
-
-	if !assert.NotNil(r.t, downstream, "no downstream provided") {
-		return wellknownerrors.ErrNotSupported
+		return nil, nil, nil, wellknownerrors.ErrNotSupported
 	}
 
 	assert.EqualValues(r.t, 12345, port)
 
+	pr, pw := net.Pipe()
+
+	errCh := make(chan error)
 	go func() {
+		defer close(errCh)
+
 		buf := make([]byte, len(testStreamData))
 		_, err := upstream.Read(buf)
 		assert.NoError(r.t, err, "failed to read from upstream")
 		assert.EqualValues(r.t, testStreamData, string(buf))
 
-		_, err = downstream.Write([]byte(testStreamData))
+		_, err = pw.Write([]byte(testStreamData))
 		assert.NoError(r.t, err, "failed to write downstream data")
 	}()
 
-	return nil
+	return pr, func() { _ = pw.Close() }, errCh, nil
 }
 
 func (r *testStreamRuntime) EnsurePod(ctx context.Context, options *runtimepb.PodEnsureCmd) (*runtimepb.PodStatusMsg, error) {
@@ -271,7 +288,7 @@ func TestHandler_Stream(t *testing.T) {
 				return
 			}
 
-			h := NewHandler(log.NoOpLogger, &testStreamRuntime{t: t})
+			h := NewHandler(log.NoOpLogger, 4096, &testStreamRuntime{t: t})
 
 			stdoutCh := make(chan struct{})
 			stderrCh := make(chan struct{})
@@ -281,9 +298,13 @@ func TestHandler_Stream(t *testing.T) {
 				switch msg.Kind {
 				case arhatgopb.MSG_DATA_OUTPUT:
 					count++
-					if pkt.Kind == runtimepb.CMD_LOGS && count != 1 {
-						return nil
+					switch pkt.Kind {
+					case runtimepb.CMD_LOGS, runtimepb.CMD_PORT_FORWARD:
+						if count != 1 {
+							return nil
+						}
 					}
+
 					close(stdoutCh)
 				case arhatgopb.MSG_RUNTIME_DATA_STDERR:
 					close(stderrCh)
