@@ -1,8 +1,7 @@
-package util
+package extutil
 
 import (
 	"errors"
-	"fmt"
 	"sync/atomic"
 
 	"arhat.dev/arhat-proto/arhatgopb"
@@ -33,5 +32,5 @@ func (h *BaseHandler) SendMsg(msg *arhatgopb.Msg) error {
 		}
 	}
 
-	return fmt.Errorf("message send func not set")
+	return ErrMsgSendFuncNotSet
 }

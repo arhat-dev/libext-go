@@ -27,8 +27,8 @@ import (
 	"arhat.dev/arhat-proto/arhatgopb"
 	"github.com/gogo/protobuf/proto"
 
+	"arhat.dev/libext/codec"
 	"arhat.dev/libext/types"
-	"arhat.dev/libext/util"
 )
 
 var (
@@ -104,14 +104,14 @@ func (enc *Encoder) Encode(any interface{}) error {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
-	sizeBuf := util.GetBytesBuf(10)
+	sizeBuf := codec.GetBytesBuf(10)
 	i := binary.PutUvarint(sizeBuf, uint64(len(data)))
 	_, err = enc.w.Write(sizeBuf[:i])
 	if err != nil {
-		util.PutBytesBuf(&sizeBuf)
+		codec.PutBytesBuf(&sizeBuf)
 		return fmt.Errorf("failed to write message size: %w", err)
 	}
-	util.PutBytesBuf(&sizeBuf)
+	codec.PutBytesBuf(&sizeBuf)
 
 	_, err = enc.w.Write(data)
 	if err != nil {
@@ -139,16 +139,16 @@ func (dec *Decoder) Decode(out interface{}) error {
 		return fmt.Errorf("failed to read size of the message: %w", err)
 	}
 
-	data := util.GetBytesBuf(int(size))
+	data := codec.GetBytesBuf(int(size))
 	_, err = io.ReadFull(dec.r, data[:size])
 	if err != nil {
-		util.PutBytesBuf(&data)
+		codec.PutBytesBuf(&data)
 		return fmt.Errorf("failed to read message body: %w", err)
 	}
 	buf := getPbBuf(data[:size])
 	err = buf.Unmarshal(m)
 
-	util.PutBytesBuf(&data)
+	codec.PutBytesBuf(&data)
 	pbBufPool.Put(buf)
 	return err
 }

@@ -25,8 +25,8 @@ import (
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
 
+	"arhat.dev/libext/extutil"
 	"arhat.dev/libext/types"
-	"arhat.dev/libext/util"
 )
 
 type cmdHandleFunc func(ctx context.Context, sid uint64, payload []byte) (*runtimepb.Packet, error)
@@ -37,7 +37,7 @@ func NewHandler(
 	impl RuntimeEngine,
 ) types.Handler {
 	h := &Handler{
-		BaseHandler: util.NewBaseHandler(),
+		BaseHandler: extutil.NewBaseHandler(),
 
 		maxPayloadSize: maxSingleMessagePayloadSize,
 
@@ -45,7 +45,7 @@ func NewHandler(
 		impl:   impl,
 
 		funcMap: nil,
-		streams: util.NewStreamManager(),
+		streams: extutil.NewStreamManager(),
 	}
 
 	h.funcMap = map[runtimepb.PacketType]cmdHandleFunc{
@@ -70,7 +70,7 @@ func NewHandler(
 }
 
 type Handler struct {
-	*util.BaseHandler
+	*extutil.BaseHandler
 
 	maxPayloadSize int
 
@@ -78,7 +78,7 @@ type Handler struct {
 	impl   RuntimeEngine
 
 	funcMap map[runtimepb.PacketType]cmdHandleFunc
-	streams *util.StreamManager
+	streams *extutil.StreamManager
 }
 
 var _zero = make([]byte, 0)

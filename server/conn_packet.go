@@ -31,6 +31,7 @@ import (
 	"arhat.dev/pkg/log"
 	"github.com/pion/dtls/v2"
 
+	"arhat.dev/libext/codec"
 	"arhat.dev/libext/util"
 )
 
@@ -163,7 +164,7 @@ func (m *packetConnectionManager) ListenAndServe() error {
 				return fmt.Errorf("failed to read packet: %w", err2)
 			}
 
-			data := util.GetBytesBuf(n)
+			data := codec.GetBytesBuf(n)
 			_ = copy(data[:n], buf[:n])
 
 			addr := ra.String()
@@ -177,13 +178,13 @@ func (m *packetConnectionManager) ListenAndServe() error {
 					m.logger.I("failed to write data to packet connection")
 				}
 
-				util.PutBytesBuf(&data)
+				codec.PutBytesBuf(&data)
 				continue
 			}
 
 			// not existing connection for this address, create a new one
-			kind, name, codec, err2 := m.validateConnection(bytes.NewReader(data[:n]))
-			util.PutBytesBuf(&data)
+			kind, name, c, err2 := m.validateConnection(bytes.NewReader(data[:n]))
+			codec.PutBytesBuf(&data)
 			if err2 != nil {
 				m.logger.I("invalid new packet connection", log.Error(err2))
 				continue
@@ -199,7 +200,7 @@ func (m *packetConnectionManager) ListenAndServe() error {
 					m.connections.Delete(addr)
 				}()
 
-				err3 := m.handleNewConn(m.addr, kind, name, codec, conn)
+				err3 := m.handleNewConn(m.addr, kind, name, c, conn)
 				if err3 != nil {
 					m.logger.I("failed to handle new packet connection", log.Error(err3))
 					return
