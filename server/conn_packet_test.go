@@ -30,6 +30,10 @@ import (
 	"arhat.dev/libext"
 	"arhat.dev/libext/codec"
 	"arhat.dev/libext/types"
+
+	// import default codec for test
+	_ "arhat.dev/libext/codec/codecjson"
+	_ "arhat.dev/libext/codec/codecpb"
 )
 
 func TestPacketConnectionManager_ListenAndServe(t *testing.T) {

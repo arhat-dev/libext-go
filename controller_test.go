@@ -20,21 +20,26 @@ import (
 	"context"
 	"testing"
 
-	"arhat.dev/libext/types"
-
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
 	"github.com/stretchr/testify/assert"
 
 	"arhat.dev/libext/codec"
+	"arhat.dev/libext/types"
+
+	// import default codec for test
+	_ "arhat.dev/libext/codec/codecjson"
+	_ "arhat.dev/libext/codec/codecpb"
 )
 
 type testHandler struct{}
 
 func (h *testHandler) SetMsgSendFunc(sendFunc types.MsgSendFunc) {}
 func (h *testHandler) SendMsg(msg *arhatgopb.Msg) error          { return nil }
-func (h *testHandler) HandleCmd(_ context.Context, _, _ uint64, _ arhatgopb.CmdType, _ []byte) (interface{}, error) {
-	return &arhatgopb.DoneMsg{}, nil
+func (h *testHandler) HandleCmd(
+	_ context.Context, _, _ uint64, _ arhatgopb.CmdType, _ []byte,
+) (arhatgopb.MsgType, interface{}, error) {
+	return arhatgopb.MSG_DONE, &arhatgopb.DoneMsg{}, nil
 }
 
 func TestController_RefreshChannels(t *testing.T) {

@@ -29,6 +29,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"arhat.dev/libext/codec"
+
+	// import default codec for test
+	_ "arhat.dev/libext/codec/codecjson"
+	_ "arhat.dev/libext/codec/codecpb"
 )
 
 func TestExtensionManager_handleStream(t *testing.T) {

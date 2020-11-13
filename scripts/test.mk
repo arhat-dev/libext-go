@@ -20,16 +20,16 @@ GO_BENCH := GOOS=$(shell go env GOHOSTOS) GOARCH=$(shell go env GOHOSTARCH) CGO_
 	-coverpkg=./... -benchtime=100000x -run '^Benchmark.*' -v
 
 test.unit.codec:
-	${GO_TEST} -coverprofile=coverage.codec.txt ./codec
+	${GO_TEST} -coverprofile=coverage.codec.txt ./codec/...
 
 test.unit.extperipheral:
-	${GO_TEST} -coverprofile=coverage.extperipheral.txt ./extperipheral
+	${GO_TEST} -coverprofile=coverage.extperipheral.txt ./extperipheral/...
 
 test.unit.extruntime:
-	${GO_TEST} -coverprofile=coverage.extruntime.txt ./extruntime
+	${GO_TEST} -coverprofile=coverage.extruntime.txt ./extruntime/...
 
 test.unit.server:
-	${GO_TEST} -coverprofile=coverage.server.txt ./server
+	${GO_TEST} -coverprofile=coverage.server.txt ./server/...
 
 test.unit.libext:
 	${GO_TEST} -coverprofile=coverage.libext.txt .

@@ -35,6 +35,10 @@ import (
 	"arhat.dev/libext/extperipheral"
 	"arhat.dev/libext/types"
 	"arhat.dev/libext/util"
+
+	// import default codec for test
+	_ "arhat.dev/libext/codec/codecjson"
+	_ "arhat.dev/libext/codec/codecpb"
 )
 
 type testPacketWriter struct {

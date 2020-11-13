@@ -31,6 +31,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"arhat.dev/libext/types"
+
+	// import default codec for test
+	_ "arhat.dev/libext/codec/codecjson"
+	_ "arhat.dev/libext/codec/codecpb"
 )
 
 const (
@@ -315,12 +319,12 @@ func TestHandler_Stream(t *testing.T) {
 				return nil
 			})
 
-			ret, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_RUNTIME_ARANYA_PROTO, pktBytes)
+			_, ret, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_RUNTIME_ARANYA_PROTO, pktBytes)
 			assert.Nil(t, ret)
 			assert.NoError(t, err)
 
 			time.Sleep(time.Second)
-			ret, err = h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_DATA_INPUT, []byte(testStreamData))
+			_, ret, err = h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_DATA_INPUT, []byte(testStreamData))
 			assert.Nil(t, ret)
 			assert.NoError(t, err)
 

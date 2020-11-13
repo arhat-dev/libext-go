@@ -27,6 +27,10 @@ import (
 
 	"arhat.dev/libext/codec"
 	"arhat.dev/libext/types"
+
+	// import default codec
+	_ "arhat.dev/libext/codec/codecjson"
+	_ "arhat.dev/libext/codec/codecpb"
 )
 
 type testPeripheral struct {
@@ -85,7 +89,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 				})
 				assert.NoError(t, err)
 
-				msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_CONNECT, connectCmdBytes)
+				_, msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_CONNECT, connectCmdBytes)
 				assert.NoError(t, err)
 				assert.IsType(t, &arhatgopb.DoneMsg{}, msg)
 			}
@@ -97,7 +101,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 				})
 				assert.NoError(t, err)
 
-				msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_OPERATE, operateCmdBytes)
+				_, msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_OPERATE, operateCmdBytes)
 				assert.NoError(t, err)
 				assert.IsType(t, &arhatgopb.PeripheralOperationResultMsg{}, msg)
 			}
@@ -108,7 +112,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 				})
 				assert.NoError(t, err)
 
-				msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_COLLECT_METRICS, metricCmdBytes)
+				_, msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_COLLECT_METRICS, metricCmdBytes)
 				assert.NoError(t, err)
 				assert.IsType(t, &arhatgopb.PeripheralMetricsMsg{}, msg)
 			}
@@ -117,7 +121,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 				closeCmdBytes, err := test.codec.Marshal(&arhatgopb.PeripheralCloseCmd{})
 				assert.NoError(t, err)
 
-				msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_CLOSE, closeCmdBytes)
+				_, msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_CLOSE, closeCmdBytes)
 				assert.NoError(t, err)
 				assert.IsType(t, &arhatgopb.DoneMsg{}, msg)
 			}
@@ -128,7 +132,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 				})
 				assert.NoError(t, err)
 
-				_, err = h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_OPERATE, invalidOperateCmdBytes)
+				_, _, err = h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_OPERATE, invalidOperateCmdBytes)
 				assert.Error(t, err)
 			}
 		})

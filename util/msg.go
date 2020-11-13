@@ -39,22 +39,3 @@ func NewMsg(
 		Payload: payload,
 	}, nil
 }
-
-func GetMsgType(m interface{}) arhatgopb.MsgType {
-	switch m.(type) {
-	case *arhatgopb.RegisterMsg:
-		return arhatgopb.MSG_REGISTER
-	case *arhatgopb.PeripheralOperationResultMsg:
-		return arhatgopb.MSG_PERIPHERAL_OPERATION_RESULT
-	case *arhatgopb.PeripheralMetricsMsg:
-		return arhatgopb.MSG_PERIPHERAL_METRICS
-	case *arhatgopb.DoneMsg:
-		return arhatgopb.MSG_DONE
-	case *arhatgopb.ErrorMsg:
-		return arhatgopb.MSG_ERROR
-	case *arhatgopb.PeripheralEventMsg:
-		return arhatgopb.MSG_PERIPHERAL_EVENTS
-	default:
-		return 0
-	}
-}

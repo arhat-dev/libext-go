@@ -28,6 +28,10 @@ import (
 
 	"arhat.dev/libext/codec"
 	"arhat.dev/libext/util"
+
+	// import default codec for test
+	_ "arhat.dev/libext/codec/codecjson"
+	_ "arhat.dev/libext/codec/codecpb"
 )
 
 func TestBaseConnectionManager_validateConnection(t *testing.T) {
@@ -64,7 +68,7 @@ func TestBaseConnectionManager_validateConnection(t *testing.T) {
 				Codec:         test.codec,
 				ExtensionType: test.kind,
 			}
-			m, err := util.NewMsg(c.Marshal, util.GetMsgType(regMsg), 0, 0, regMsg)
+			m, err := util.NewMsg(c.Marshal, arhatgopb.MSG_REGISTER, 0, 0, regMsg)
 			if !assert.NoError(t, err) {
 				return
 			}

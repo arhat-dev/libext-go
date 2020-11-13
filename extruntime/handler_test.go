@@ -34,6 +34,10 @@ import (
 
 	"arhat.dev/libext/codec"
 	"arhat.dev/libext/types"
+
+	// import default codec for test
+	_ "arhat.dev/libext/codec/codecjson"
+	_ "arhat.dev/libext/codec/codecpb"
 )
 
 type testRuntime struct{}
@@ -204,7 +208,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 				})
 				assert.NoError(t, err)
 
-				msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_CONNECT, invalidPeripheralCmd)
+				_, msg, err := h.HandleCmd(context.TODO(), 1, 0, arhatgopb.CMD_PERIPHERAL_CONNECT, invalidPeripheralCmd)
 				assert.Error(t, err)
 				_ = msg
 			}
@@ -327,7 +331,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 						return nil
 					})
 
-					ret, err := h.HandleCmd(
+					_, ret, err := h.HandleCmd(
 						context.TODO(), 1, 1,
 						arhatgopb.CMD_RUNTIME_ARANYA_PROTO,
 						encodeRuntimePkt(c.kind, c.payload),

@@ -3,7 +3,7 @@ package util
 import (
 	"errors"
 	"fmt"
-	"sync"
+	"sync/atomic"
 
 	"arhat.dev/arhat-proto/arhatgopb"
 
@@ -12,33 +12,26 @@ import (
 
 var ErrMsgSendFuncNotSet = errors.New("message send func not set")
 
-func NewBaseHandler(mu *sync.RWMutex) *BaseHandler {
+func NewBaseHandler() *BaseHandler {
 	return &BaseHandler{
-		mu: mu,
+		msgSendFuncStore: new(atomic.Value),
 	}
 }
 
 type BaseHandler struct {
-	msgSendFunc types.MsgSendFunc
-
-	mu *sync.RWMutex
+	msgSendFuncStore *atomic.Value
 }
 
 func (h *BaseHandler) SetMsgSendFunc(sendMsg types.MsgSendFunc) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	h.msgSendFunc = sendMsg
+	h.msgSendFuncStore.Store(sendMsg)
 }
 
 func (h *BaseHandler) SendMsg(msg *arhatgopb.Msg) error {
-	h.mu.RLock()
-	sendMsg := h.msgSendFunc
-	h.mu.RUnlock()
-
-	if sendMsg == nil {
-		return fmt.Errorf("message send func not set")
+	if o := h.msgSendFuncStore.Load(); o != nil {
+		if f, ok := o.(types.MsgSendFunc); ok && f != nil {
+			return f(msg)
+		}
 	}
 
-	return sendMsg(msg)
+	return fmt.Errorf("message send func not set")
 }

@@ -38,6 +38,10 @@ import (
 	"arhat.dev/libext/server"
 	"arhat.dev/libext/types"
 	"arhat.dev/libext/util"
+
+	// import default codec for test
+	_ "arhat.dev/libext/codec/codecjson"
+	_ "arhat.dev/libext/codec/codecpb"
 )
 
 func BenchmarkSuite(b *testing.B) {

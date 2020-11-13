@@ -107,7 +107,9 @@ func (c *Controller) handleSession() {
 
 			// cmdCh will be closed once RefreshChannels called
 			for cmd := range cb.cmdCh {
-				ret, err := c.handler.HandleCmd(ctx, cmd.Id, cmd.Seq, cmd.Kind, cmd.Payload)
+				kind, ret, err := c.handler.HandleCmd(
+					ctx, cmd.Id, cmd.Seq, cmd.Kind, cmd.Payload,
+				)
 				if err != nil {
 					ret = &arhatgopb.ErrorMsg{Description: err.Error()}
 				}
@@ -115,11 +117,6 @@ func (c *Controller) handleSession() {
 				// no return message means async operation, will send message later
 				if ret == nil {
 					continue
-				}
-
-				kind := util.GetMsgType(ret)
-				if kind == 0 {
-					return fmt.Errorf("unknown response msg")
 				}
 
 				msg, err := util.NewMsg(c.marshal, kind, cmd.Id, cmd.Seq, ret)

@@ -23,6 +23,10 @@ import (
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
 	"github.com/stretchr/testify/assert"
+
+	// import default codec for test
+	_ "arhat.dev/libext/codec/codecjson"
+	_ "arhat.dev/libext/codec/codecpb"
 )
 
 func TestNewServer(t *testing.T) {
