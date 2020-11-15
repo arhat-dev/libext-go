@@ -30,13 +30,22 @@ import (
 	"arhat.dev/libext/extperipheral"
 
 	// import default codec
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	_ "arhat.dev/libext/codec/gogoprotobuf"
+	_ "arhat.dev/libext/codec/stdjson"
+
+	// import default network support
+	_ "arhat.dev/pkg/nethelper/piondtls"
+	_ "arhat.dev/pkg/nethelper/pipenet"
+	_ "arhat.dev/pkg/nethelper/stdnet"
 )
 
 func ExampleClient() {
 	appCtx := context.TODO()
-	codec := codec.GetCodec(arhatgopb.CODEC_PROTOBUF)
+	codec, ok := codec.Get(arhatgopb.CODEC_PROTOBUF)
+	if !ok {
+		panic("protobuf codec not supported")
+	}
+
 	client, err := libext.NewClient(
 		appCtx,
 		arhatgopb.EXTENSION_PERIPHERAL,

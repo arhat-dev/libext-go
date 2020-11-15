@@ -15,14 +15,4 @@ limitations under the License.
 */
 
 // Package codecpb implements protobuf codec for libext
-package codecpb
-
-import (
-	"arhat.dev/arhat-proto/arhatgopb"
-
-	"arhat.dev/libext/codec"
-)
-
-func init() {
-	codec.RegisterCodec(arhatgopb.CODEC_PROTOBUF, new(Codec))
-}
+package gogoprotobuf

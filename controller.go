@@ -24,15 +24,16 @@ import (
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
 
+	"arhat.dev/libext/codec"
+	"arhat.dev/libext/protoutil"
 	"arhat.dev/libext/types"
-	"arhat.dev/libext/util"
 )
 
 // NewController creates a hub for message send/receive
 func NewController(
 	ctx context.Context,
 	logger log.Interface,
-	marshal types.MarshalFunc,
+	marshal codec.MarshalFunc,
 	h types.Handler,
 ) (*Controller, error) {
 	return &Controller{
@@ -53,7 +54,7 @@ type Controller struct {
 	ctx    context.Context
 	logger log.Interface
 
-	marshal     types.MarshalFunc
+	marshal     codec.MarshalFunc
 	handler     types.Handler
 	currentCB   *channelBundle
 	chRefreshed chan *channelBundle
@@ -119,7 +120,7 @@ func (c *Controller) handleSession() {
 					continue
 				}
 
-				msg, err := util.NewMsg(c.marshal, kind, cmd.Id, cmd.Seq, ret)
+				msg, err := protoutil.NewMsg(c.marshal, kind, cmd.Id, cmd.Seq, ret)
 				if err != nil {
 					return fmt.Errorf("failed to marshal response msg")
 				}

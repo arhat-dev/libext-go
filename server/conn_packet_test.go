@@ -29,11 +29,15 @@ import (
 
 	"arhat.dev/libext"
 	"arhat.dev/libext/codec"
-	"arhat.dev/libext/types"
 
 	// import default codec for test
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	_ "arhat.dev/libext/codec/gogoprotobuf"
+	_ "arhat.dev/libext/codec/stdjson"
+
+	// import default network support for test
+	_ "arhat.dev/pkg/nethelper/piondtls"
+	_ "arhat.dev/pkg/nethelper/pipenet"
+	_ "arhat.dev/pkg/nethelper/stdnet"
 )
 
 func TestPacketConnectionManager_ListenAndServe(t *testing.T) {
@@ -43,20 +47,30 @@ func TestPacketConnectionManager_ListenAndServe(t *testing.T) {
 		return
 	}
 
+	jsonCodec, ok := codec.Get(arhatgopb.CODEC_JSON)
+	if !assert.True(t, ok) {
+		return
+	}
+
+	pbCodec, ok := codec.Get(arhatgopb.CODEC_PROTOBUF)
+	if !assert.True(t, ok) {
+		return
+	}
+
 	tests := []struct {
 		name    string
 		regName string
-		codec   types.Codec
+		codec   codec.Interface
 	}{
 		{
 			name:    "pb",
 			regName: "foo",
-			codec:   codec.GetCodec(arhatgopb.CODEC_PROTOBUF),
+			codec:   pbCodec,
 		},
 		{
 			name:    "json",
 			regName: "foo",
-			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
+			codec:   jsonCodec,
 		},
 	}
 
@@ -75,16 +89,16 @@ func testConnectionManagerListenAndServe(
 	t *testing.T,
 	addr net.Addr,
 	regName string,
-	codec types.Codec,
+	c codec.Interface,
 	createMgr func(handleFunc netConnectionHandleFunc) connectionManager,
 ) {
 	time.Sleep(5 * time.Second)
 
 	cmdCh, msgCh := make(chan *arhatgopb.Cmd), make(chan *arhatgopb.Msg)
 
-	handleFunc := func(_ net.Addr, kind arhatgopb.ExtensionType, name string, codec types.Codec, conn io.ReadWriter) error {
+	handleFunc := func(_ net.Addr, kind arhatgopb.ExtensionType, name string, c codec.Interface, conn io.ReadWriter) error {
 		assert.EqualValues(t, regName, name)
-		assert.EqualValues(t, codec.Type(), codec.Type())
+		assert.EqualValues(t, c.Type(), c.Type())
 
 		close(msgCh)
 		return nil
@@ -100,7 +114,7 @@ func testConnectionManagerListenAndServe(
 		context.TODO(),
 		arhatgopb.EXTENSION_PERIPHERAL,
 		regName,
-		codec,
+		c,
 		nil,
 		addr.Network()+"://"+addr.String(),
 		nil,

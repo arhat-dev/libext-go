@@ -28,8 +28,13 @@ import (
 	"arhat.dev/libext/types"
 
 	// import default codec for test
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	_ "arhat.dev/libext/codec/gogoprotobuf"
+	_ "arhat.dev/libext/codec/stdjson"
+
+	// import default network support for test
+	_ "arhat.dev/pkg/nethelper/piondtls"
+	_ "arhat.dev/pkg/nethelper/pipenet"
+	_ "arhat.dev/pkg/nethelper/stdnet"
 )
 
 type testHandler struct{}
@@ -43,7 +48,11 @@ func (h *testHandler) HandleCmd(
 }
 
 func TestController_RefreshChannels(t *testing.T) {
-	c, err := NewController(context.TODO(), log.NoOpLogger, codec.GetCodec(arhatgopb.CODEC_JSON).Marshal, &testHandler{})
+	jsonCodec, ok := codec.Get(arhatgopb.CODEC_JSON)
+	if assert.True(t, ok, "no json codec found") {
+		return
+	}
+	c, err := NewController(context.TODO(), log.NoOpLogger, jsonCodec.Marshal, &testHandler{})
 	if !assert.NoError(t, err) {
 		t.FailNow()
 		return

@@ -31,8 +31,13 @@ import (
 	"arhat.dev/libext/codec"
 
 	// import default codec for test
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	_ "arhat.dev/libext/codec/gogoprotobuf"
+	_ "arhat.dev/libext/codec/stdjson"
+
+	// import default network support for test
+	_ "arhat.dev/pkg/nethelper/piondtls"
+	_ "arhat.dev/pkg/nethelper/pipenet"
+	_ "arhat.dev/pkg/nethelper/stdnet"
 )
 
 func TestExtensionManager_handleStream(t *testing.T) {
@@ -54,7 +59,11 @@ func TestExtensionManager_handleStream(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			c := codec.GetCodec(arhatgopb.CODEC_JSON)
+			c, ok := codec.Get(arhatgopb.CODEC_JSON)
+			if !assert.True(t, ok) {
+				return
+			}
+
 			cmd := &arhatgopb.Cmd{
 				Kind:    100,
 				Id:      1,

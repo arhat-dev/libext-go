@@ -33,8 +33,8 @@ import (
 	"arhat.dev/libext/types"
 
 	// import default codec for test
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	_ "arhat.dev/libext/codec/gogoprotobuf"
+	_ "arhat.dev/libext/codec/stdjson"
 )
 
 const (

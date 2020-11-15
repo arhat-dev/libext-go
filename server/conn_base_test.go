@@ -27,11 +27,16 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"arhat.dev/libext/codec"
-	"arhat.dev/libext/util"
+	"arhat.dev/libext/protoutil"
 
 	// import default codec for test
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	_ "arhat.dev/libext/codec/gogoprotobuf"
+	_ "arhat.dev/libext/codec/stdjson"
+
+	// import default network support for test
+	_ "arhat.dev/pkg/nethelper/piondtls"
+	_ "arhat.dev/pkg/nethelper/pipenet"
+	_ "arhat.dev/pkg/nethelper/stdnet"
 )
 
 func TestBaseConnectionManager_validateConnection(t *testing.T) {
@@ -61,14 +66,17 @@ func TestBaseConnectionManager_validateConnection(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			mgr := newBaseConnectionManager(context.TODO(), log.NoOpLogger, addr, nil)
 
-			c := codec.GetCodec(arhatgopb.CODEC_JSON)
+			c, ok := codec.Get(arhatgopb.CODEC_JSON)
+			if assert.True(t, ok, "json codec not imported") {
+				return
+			}
 
 			regMsg := &arhatgopb.RegisterMsg{
 				Name:          test.name,
 				Codec:         test.codec,
 				ExtensionType: test.kind,
 			}
-			m, err := util.NewMsg(c.Marshal, arhatgopb.MSG_REGISTER, 0, 0, regMsg)
+			m, err := protoutil.NewMsg(c.Marshal, arhatgopb.MSG_REGISTER, 0, 0, regMsg)
 			if !assert.NoError(t, err) {
 				return
 			}

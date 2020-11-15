@@ -31,28 +31,42 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"arhat.dev/libext/codec"
-	"arhat.dev/libext/types"
 
 	// import default codec for test
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	_ "arhat.dev/libext/codec/gogoprotobuf"
+	_ "arhat.dev/libext/codec/stdjson"
+
+	// import default network support for test
+	_ "arhat.dev/pkg/nethelper/piondtls"
+	_ "arhat.dev/pkg/nethelper/pipenet"
+	_ "arhat.dev/pkg/nethelper/stdnet"
 )
 
 func TestStreamConnectionManager_ListenAndServe(t *testing.T) {
+	jsonCodec, ok := codec.Get(arhatgopb.CODEC_JSON)
+	if !assert.True(t, ok) {
+		return
+	}
+
+	pbCodec, ok := codec.Get(arhatgopb.CODEC_PROTOBUF)
+	if !assert.True(t, ok) {
+		return
+	}
+
 	tests := []struct {
 		name    string
 		regName string
-		codec   types.Codec
+		codec   codec.Interface
 	}{
 		{
 			name:    "pb",
 			regName: "foo",
-			codec:   codec.GetCodec(arhatgopb.CODEC_PROTOBUF),
+			codec:   pbCodec,
 		},
 		{
 			name:    "json",
 			regName: "foo",
-			codec:   codec.GetCodec(arhatgopb.CODEC_JSON),
+			codec:   jsonCodec,
 		},
 	}
 

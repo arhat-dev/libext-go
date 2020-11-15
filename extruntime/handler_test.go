@@ -36,8 +36,8 @@ import (
 	"arhat.dev/libext/types"
 
 	// import default codec for test
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	_ "arhat.dev/libext/codec/gogoprotobuf"
+	_ "arhat.dev/libext/codec/stdjson"
 )
 
 type testRuntime struct{}
@@ -180,17 +180,22 @@ func (r *testRuntime) ListImages(ctx context.Context, options *runtimepb.ImageLi
 }
 
 func TestHandler_HandleCmd(t *testing.T) {
+	jsonCodec, ok := codec.Get(arhatgopb.CODEC_JSON)
+	assert.True(t, ok)
+	pbCodec, ok := codec.Get(arhatgopb.CODEC_PROTOBUF)
+	assert.True(t, ok)
+
 	tests := []struct {
 		name  string
-		codec types.Codec
+		codec codec.Interface
 	}{
 		{
 			name:  "pb",
-			codec: codec.GetCodec(arhatgopb.CODEC_PROTOBUF),
+			codec: pbCodec,
 		},
 		{
 			name:  "json",
-			codec: codec.GetCodec(arhatgopb.CODEC_JSON),
+			codec: jsonCodec,
 		},
 	}
 	for _, te := range tests {
@@ -306,7 +311,7 @@ func TestHandler_HandleCmd(t *testing.T) {
 							panic(err)
 						}
 
-						data, err = codec.GetCodec(arhatgopb.CODEC_PROTOBUF).Marshal(&runtimepb.Packet{
+						data, err = pbCodec.Marshal(&runtimepb.Packet{
 							Kind:    kind,
 							Payload: data,
 						})
@@ -356,8 +361,8 @@ func TestHandler_HandleCmd(t *testing.T) {
 					assert.EqualValues(t, arhatgopb.MSG_RUNTIME_ARANYA_PROTO, actualRet.Kind)
 
 					pkt := new(runtimepb.Packet)
-					assert.NoError(t, codec.GetCodec(arhatgopb.CODEC_PROTOBUF).Unmarshal(actualRet.Payload, pkt))
-					assert.NoError(t, codec.GetCodec(arhatgopb.CODEC_PROTOBUF).Unmarshal(pkt.Payload, c.actualType))
+					assert.NoError(t, pbCodec.Unmarshal(actualRet.Payload, pkt))
+					assert.NoError(t, pbCodec.Unmarshal(pkt.Payload, c.actualType))
 
 					assert.EqualValues(t, c.expected, c.actualType)
 				})

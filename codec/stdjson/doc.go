@@ -14,28 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package util
+// Package codecjson uses stdlib json for libext
+package stdjson
 
 import (
 	"arhat.dev/arhat-proto/arhatgopb"
 
-	"arhat.dev/libext/types"
+	"arhat.dev/libext/codec"
 )
 
-func NewMsg(
-	marshal types.MarshalFunc,
-	kind arhatgopb.MsgType,
-	id, ack uint64, body interface{},
-) (*arhatgopb.Msg, error) {
-	payload, err := marshal(body)
-	if err != nil {
-		return nil, err
-	}
-
-	return &arhatgopb.Msg{
-		Kind:    kind,
-		Id:      id,
-		Ack:     ack,
-		Payload: payload,
-	}, nil
+func init() {
+	codec.Register(arhatgopb.CODEC_JSON, new(Codec))
 }

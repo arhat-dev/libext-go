@@ -25,13 +25,14 @@ import (
 	"arhat.dev/pkg/log"
 	"arhat.dev/pkg/wellknownerrors"
 
+	"arhat.dev/libext/codec"
 	"arhat.dev/libext/extutil"
 	"arhat.dev/libext/types"
 )
 
 type cmdHandleFunc func(ctx context.Context, p Peripheral, payload []byte) (arhatgopb.MsgType, interface{}, error)
 
-func NewHandler(logger log.Interface, unmarshal types.UnmarshalFunc, impl PeripheralConnector) types.Handler {
+func NewHandler(logger log.Interface, unmarshal codec.UnmarshalFunc, impl PeripheralConnector) types.Handler {
 	h := &Handler{
 		BaseHandler: extutil.NewBaseHandler(),
 
@@ -57,7 +58,7 @@ type Handler struct {
 
 	logger log.Interface
 
-	unmarshal   types.UnmarshalFunc
+	unmarshal   codec.UnmarshalFunc
 	impl        PeripheralConnector
 	peripherals *sync.Map
 

@@ -32,31 +32,46 @@ import (
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/iohelper"
 	"arhat.dev/pkg/log"
+	"github.com/stretchr/testify/assert"
 
 	"arhat.dev/libext/codec"
 	"arhat.dev/libext/extperipheral"
+	"arhat.dev/libext/protoutil"
 	"arhat.dev/libext/server"
-	"arhat.dev/libext/types"
-	"arhat.dev/libext/util"
 
 	// import default codec for test
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	_ "arhat.dev/libext/codec/gogoprotobuf"
+	_ "arhat.dev/libext/codec/stdjson"
+
+	// import default network support for test
+	_ "arhat.dev/pkg/nethelper/piondtls"
+	_ "arhat.dev/pkg/nethelper/pipenet"
+	_ "arhat.dev/pkg/nethelper/stdnet"
 )
 
 func BenchmarkSuite(b *testing.B) {
 	type benchCase struct {
 		network string
 		host    string
-		codec   types.Codec
+		codec   codec.Interface
 		tls     bool
+	}
+
+	jsonCodec, ok := codec.Get(arhatgopb.CODEC_JSON)
+	if !assert.True(b, ok) {
+		return
+	}
+
+	pbCodec, ok := codec.Get(arhatgopb.CODEC_PROTOBUF)
+	if !assert.True(b, ok) {
+		return
 	}
 
 	var (
 		protos = []string{"tcp4", "tcp6", "udp4", "udp6", "pipe"}
-		codecs = []types.Codec{
-			codec.GetCodec(arhatgopb.CODEC_JSON),
-			codec.GetCodec(arhatgopb.CODEC_PROTOBUF),
+		codecs = []codec.Interface{
+			jsonCodec,
+			pbCodec,
 		}
 	)
 
@@ -214,7 +229,7 @@ func BenchmarkSuite(b *testing.B) {
 						b.StartTimer()
 
 						for idx := 0; idx < b.N; idx++ {
-							cmd, err2 := util.NewCmd(
+							cmd, err2 := protoutil.NewCmd(
 								bm.codec.Marshal, arhatgopb.CMD_PERIPHERAL_CONNECT, uint64(idx), 1,
 								&arhatgopb.PeripheralConnectCmd{
 									Target: "benchmark",

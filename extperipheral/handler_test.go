@@ -26,11 +26,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"arhat.dev/libext/codec"
-	"arhat.dev/libext/types"
 
 	// import default codec
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	_ "arhat.dev/libext/codec/gogoprotobuf"
+	_ "arhat.dev/libext/codec/stdjson"
 )
 
 type testPeripheral struct {
@@ -65,17 +64,22 @@ func (p *testPeripheralConnector) Connect(
 }
 
 func TestHandler_HandleCmd(t *testing.T) {
+	jsonCodec, ok := codec.Get(arhatgopb.CODEC_JSON)
+	assert.True(t, ok)
+	pbCodec, ok := codec.Get(arhatgopb.CODEC_PROTOBUF)
+	assert.True(t, ok)
+
 	tests := []struct {
 		name  string
-		codec types.Codec
+		codec codec.Interface
 	}{
 		{
 			name:  "pb",
-			codec: codec.GetCodec(arhatgopb.CODEC_PROTOBUF),
+			codec: pbCodec,
 		},
 		{
 			name:  "json",
-			codec: codec.GetCodec(arhatgopb.CODEC_JSON),
+			codec: jsonCodec,
 		},
 	}
 	for _, test := range tests {

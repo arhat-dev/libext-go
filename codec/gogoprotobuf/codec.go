@@ -1,3 +1,5 @@
+// +build !nocodec_gogoprotobuf
+
 /*
 Copyright 2020 The arhat.dev Authors.
 
@@ -14,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package codecpb
+package gogoprotobuf
 
 import (
 	"bufio"
@@ -28,8 +30,11 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	"arhat.dev/libext/codec"
-	"arhat.dev/libext/types"
 )
+
+func init() {
+	codec.Register(arhatgopb.CODEC_PROTOBUF, new(Codec))
+}
 
 var (
 	ErrNotProtobufMessage = errors.New("invalid not protobuf message")
@@ -53,11 +58,11 @@ func (c *Codec) Type() arhatgopb.CodecType {
 	return arhatgopb.CODEC_PROTOBUF
 }
 
-func (c *Codec) NewEncoder(w io.Writer) types.Encoder {
+func (c *Codec) NewEncoder(w io.Writer) codec.Encoder {
 	return &Encoder{w}
 }
 
-func (c *Codec) NewDecoder(r io.Reader) types.Decoder {
+func (c *Codec) NewDecoder(r io.Reader) codec.Decoder {
 	return &Decoder{bufio.NewReader(r)}
 }
 

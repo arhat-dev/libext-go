@@ -23,12 +23,17 @@ import (
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/log"
 
+	"arhat.dev/libext/protoutil"
 	"arhat.dev/libext/server"
-	"arhat.dev/libext/util"
 
 	// import default codec
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	_ "arhat.dev/libext/codec/gogoprotobuf"
+	_ "arhat.dev/libext/codec/stdjson"
+
+	// import default network support
+	_ "arhat.dev/pkg/nethelper/piondtls"
+	_ "arhat.dev/pkg/nethelper/pipenet"
+	_ "arhat.dev/pkg/nethelper/stdnet"
 )
 
 func ExampleServer() {
@@ -89,7 +94,7 @@ func (s *exampleServer) Start() {
 			logger.I("invalid non extension context stored")
 		}
 
-		cmd, err := util.NewCmd(
+		cmd, err := protoutil.NewCmd(
 			ec.Codec.Marshal, arhatgopb.CMD_PERIPHERAL_CONNECT, 1, 1,
 			&arhatgopb.PeripheralConnectCmd{
 				Target: "data",

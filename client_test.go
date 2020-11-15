@@ -28,17 +28,21 @@ import (
 
 	"arhat.dev/arhat-proto/arhatgopb"
 	"arhat.dev/pkg/iohelper"
-	"arhat.dev/pkg/pipenet"
+	"arhat.dev/pkg/nethelper"
 	"github.com/stretchr/testify/assert"
 
 	"arhat.dev/libext/codec"
 	"arhat.dev/libext/extperipheral"
-	"arhat.dev/libext/types"
-	"arhat.dev/libext/util"
+	"arhat.dev/libext/protoutil"
 
 	// import default codec for test
-	_ "arhat.dev/libext/codec/codecjson"
-	_ "arhat.dev/libext/codec/codecpb"
+	_ "arhat.dev/libext/codec/gogoprotobuf"
+	_ "arhat.dev/libext/codec/stdjson"
+
+	// import default network support for test
+	_ "arhat.dev/pkg/nethelper/piondtls"
+	_ "arhat.dev/pkg/nethelper/pipenet"
+	_ "arhat.dev/pkg/nethelper/stdnet"
 )
 
 type testPacketWriter struct {
@@ -66,7 +70,7 @@ func TestClient_ProcessNewStream(t *testing.T) {
 	type testCase struct {
 		network string
 		packet  bool
-		codec   types.Codec
+		codec   codec.Interface
 	}
 
 	var tests []testCase
@@ -74,10 +78,16 @@ func TestClient_ProcessNewStream(t *testing.T) {
 	for _, network := range protos {
 		isPkt := strings.HasPrefix(network, "udp")
 		for _, c := range []arhatgopb.CodecType{arhatgopb.CODEC_JSON, arhatgopb.CODEC_PROTOBUF} {
+
+			co, ok := codec.Get(c)
+			if !assert.True(t, ok, "codec not found "+c.String()) {
+				return
+			}
+
 			tests = append(tests, testCase{
 				network: network,
 				packet:  isPkt,
-				codec:   codec.GetCodec(c),
+				codec:   co,
 			})
 		}
 	}
@@ -121,7 +131,7 @@ func TestClient_ProcessNewStream(t *testing.T) {
 				listenAddr = "localhost:0"
 			}
 
-			cmd, err := util.NewCmd(
+			cmd, err := protoutil.NewCmd(
 				test.codec.Marshal, arhatgopb.CMD_PERIPHERAL_CONNECT, 1, 1,
 				&arhatgopb.PeripheralOperateCmd{
 					Params: map[string]string{"test": "test"},
@@ -132,7 +142,7 @@ func TestClient_ProcessNewStream(t *testing.T) {
 				return
 			}
 
-			msg, err := util.NewMsg(
+			msg, err := protoutil.NewMsg(
 				test.codec.Marshal, arhatgopb.MSG_PERIPHERAL_OPERATION_RESULT, 1, 1,
 				&arhatgopb.PeripheralOperationResultMsg{
 					Result: [][]byte{[]byte("test")},
@@ -148,17 +158,13 @@ func TestClient_ProcessNewStream(t *testing.T) {
 				connected   = make(chan struct{})
 				clientWrote = make(chan struct{})
 			)
-			if !test.packet {
-				var l net.Listener
-				if test.network == "pipe" {
-					l, err = pipenet.ListenPipe(listenAddr, "", 0600)
-				} else {
-					l, err = net.Listen(test.network, listenAddr)
-				}
-				if !assert.NoError(t, err, "failed to listen") {
-					return
-				}
+			lRaw, err := nethelper.Listen(context.TODO(), nil, test.network, listenAddr, nil)
+			if !assert.NoError(t, err, "failed to listen") {
+				return
+			}
 
+			switch l := lRaw.(type) {
+			case net.Listener:
 				defer func() {
 					_ = l.Close()
 				}()
@@ -168,7 +174,6 @@ func TestClient_ProcessNewStream(t *testing.T) {
 				} else {
 					srvAddr = l.Addr().String()
 				}
-
 				go func() {
 					conn, err2 := l.Accept()
 					if !assert.NoError(t, err2) {
@@ -176,7 +181,12 @@ func TestClient_ProcessNewStream(t *testing.T) {
 						return
 					}
 
-					err2 = codec.GetCodec(arhatgopb.CODEC_JSON).NewDecoder(conn).Decode(&arhatgopb.Msg{})
+					jsonCodec, ok := codec.Get(arhatgopb.CODEC_JSON)
+					if !assert.True(t, ok) {
+						return
+					}
+
+					err2 = jsonCodec.NewDecoder(conn).Decode(&arhatgopb.Msg{})
 					assert.NoError(t, err2)
 
 					// encode test command
@@ -188,22 +198,16 @@ func TestClient_ProcessNewStream(t *testing.T) {
 					time.Sleep(time.Second)
 					_ = conn.Close()
 				}()
-			} else {
-				p, err2 := net.ListenPacket(test.network, listenAddr)
-				if !assert.NoError(t, err2) {
-					assert.FailNow(t, "failed to listen packet")
-					return
-				}
-
+			case net.PacketConn:
 				defer func() {
-					_ = p.Close()
+					_ = l.Close()
 				}()
 
-				srvAddr = p.LocalAddr().String()
+				srvAddr = l.LocalAddr().String()
 
 				go func() {
 					buf := make([]byte, 65535)
-					_, ra, err2 := p.ReadFrom(buf)
+					_, ra, err2 := l.ReadFrom(buf)
 					if !assert.NoError(t, err2) {
 						assert.FailNow(t, "failed to read packet")
 						return
@@ -211,7 +215,7 @@ func TestClient_ProcessNewStream(t *testing.T) {
 
 					conn := &testPacketWriter{
 						ra:   ra,
-						conn: p,
+						conn: l,
 					}
 					enc := test.codec.NewEncoder(conn)
 					assert.NoError(t, enc.Encode(cmd))
@@ -219,6 +223,8 @@ func TestClient_ProcessNewStream(t *testing.T) {
 					close(connected)
 					<-clientWrote
 				}()
+			default:
+				assert.Fail(t, "unknown listener type")
 			}
 
 			client, err := NewClient(
