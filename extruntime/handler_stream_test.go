@@ -302,11 +302,8 @@ func TestHandler_Stream(t *testing.T) {
 				switch msg.Kind {
 				case arhatgopb.MSG_DATA_OUTPUT:
 					count++
-					switch pkt.Kind {
-					case runtimepb.CMD_LOGS, runtimepb.CMD_PORT_FORWARD:
-						if count != 1 {
-							return nil
-						}
+					if count != 1 {
+						return nil
 					}
 
 					close(stdoutCh)
