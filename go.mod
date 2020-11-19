@@ -3,7 +3,7 @@ module arhat.dev/libext
 go 1.15
 
 require (
-	arhat.dev/aranya-proto v0.2.4
+	arhat.dev/aranya-proto v0.2.5
 	arhat.dev/arhat-proto v0.4.3
 	arhat.dev/pkg v0.4.4
 	github.com/gogo/protobuf v1.3.1
