@@ -11,6 +11,8 @@ require (
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 )
 
+replace github.com/creack/pty => github.com/jeffreystoke/pty v1.1.12-0.20201126201855-c1c1e24408f9
+
 replace (
 	k8s.io/api => k8s.io/api v0.19.4
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.19.4
