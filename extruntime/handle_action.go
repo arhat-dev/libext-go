@@ -227,7 +227,7 @@ func (h *Handler) handlePortForward(ctx context.Context, sid uint64, payload []b
 
 	err = h.streams.Add(sid, func() (io.WriteCloser, types.ResizeHandleFunc, error) {
 		downstream, closeWrite, errCh, err = h.impl.PortForward(
-			ctx, opts.PodUid, opts.Protocol, opts.Port, pr,
+			ctx, opts.PodUid, opts.Network, opts.Port, pr,
 		)
 		if err != nil {
 			return nil, nil, err

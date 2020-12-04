@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package extruntime provides easy to ues wrap for runtime extension development
+// Package extruntime provides easy to ues wrapper for runtime extension development
 package extruntime

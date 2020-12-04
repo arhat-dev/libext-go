@@ -3,9 +3,9 @@ module arhat.dev/libext
 go 1.15
 
 require (
-	arhat.dev/aranya-proto v0.2.6
+	arhat.dev/aranya-proto v0.3.2
 	arhat.dev/arhat-proto v0.4.3
-	arhat.dev/pkg v0.4.5
+	arhat.dev/pkg v0.5.1
 	github.com/gogo/protobuf v1.3.1
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9

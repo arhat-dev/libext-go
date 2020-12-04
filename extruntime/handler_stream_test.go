@@ -276,9 +276,9 @@ func TestHandler_Stream(t *testing.T) {
 			Kind: runtimepb.CMD_PORT_FORWARD,
 			Payload: func() []byte {
 				data, err := (&aranyagopb.PortForwardCmd{
-					PodUid:   "",
-					Protocol: "tcp",
-					Port:     12345,
+					PodUid:  "",
+					Network: "tcp",
+					Port:    12345,
 				}).Marshal()
 
 				assert.NoError(t, err)
