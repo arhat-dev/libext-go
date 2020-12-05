@@ -12,8 +12,12 @@ on:
   push:
     branches:
     - master
+    - "!deps/**"
     tags:
     - v*
+    paths-ignore:
+    - docs/**
+    - "*.md"
 
 env:
   GO111MODULE: "on"
@@ -23,27 +27,15 @@ defaults:
     shell: bash
 
 jobs:
-  check:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        go:
-        - 1.14.x
-        # there are some issues for fuzz test with go1.15
-        - 1.15.x
-        os:
-        - macos-latest
-        - windows-latest
-        - ubuntu-latest
-
+  build-test:
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
 
     - name: Install Go
       uses: actions/setup-go@v2
       with:
-        go-version: ${{ matrix.go }}
+        go-version: 1.15.x
 
     - name: Ensure tidy gomod
       run: |
@@ -56,9 +48,33 @@ jobs:
         fi
 
     - name: Lint
-      if: matrix.os == 'ubuntu-latest'
       run: |
         make lint.all
+
+    - name: Test multi-platform build
+      run: |
+        make test.build
+
+  check:
+    if: contains(github.head_ref, 'deps/') == false
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        go:
+        - 1.14.x
+        - 1.15.x
+        os:
+        - macos-latest
+        - windows-latest
+        - ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go }}
 
     - name: Unit Tests
       run: |
@@ -91,6 +107,7 @@ jobs:
   #   - name: Install Go
   #     uses: actions/setup-go@v2
   #     with:
+  #       # there are some issues for fuzz test with go1.15
   #       go-version: 1.14.x
 
   #   - name: Fuzz Tests
