@@ -21,6 +21,7 @@ import (
 	"math"
 	"runtime"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"arhat.dev/pkg/wellknownerrors"
@@ -80,9 +81,7 @@ func (m *StreamManager) Add(sid uint64, create func() (io.WriteCloser, types.Res
 			rF = noopHandleResize
 		}
 
-		s := newStream(w, rF)
-		go s.handleWrite()
-		m.sessions[sid] = s
+		m.sessions[sid] = newStream(w, rF)
 	})
 
 	return
@@ -145,6 +144,7 @@ func newStream(w io.WriteCloser, rF types.ResizeHandleFunc) *stream {
 	}
 
 	atomic.StorePointer(&s.currentChunkPtr, unsafe.Pointer(&s.dataChunks))
+	go s.handleWrite()
 
 	return s
 }
@@ -194,7 +194,18 @@ func (s *stream) close() {
 	}
 
 	_ = s._w.Close()
-	close(s.seqDataCh)
+
+	// wait until no data remain in data channel
+	for {
+		// close is issued after offer(), so we just need to check
+		// if there is data remaining in the buffered channel
+		if len(s.seqDataCh) == 0 {
+			close(s.seqDataCh)
+			return
+		}
+
+		time.Sleep(time.Second)
+	}
 }
 
 type seqData struct {
