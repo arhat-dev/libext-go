@@ -5,7 +5,7 @@ go 1.15
 require (
 	arhat.dev/aranya-proto v0.3.2
 	arhat.dev/arhat-proto v0.4.3
-	arhat.dev/pkg v0.5.2
+	arhat.dev/pkg v0.5.4-0.20201208231734-f8f30f9ea2eb
 	github.com/gogo/protobuf v1.3.1
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
